@@ -1,6 +1,7 @@
 package com.rsargsyan.probarr.main_ctx.adapters.driving.controllers;
 
 import com.rsargsyan.probarr.main_ctx.core.app.ReleaseService;
+import com.rsargsyan.probarr.main_ctx.core.app.dto.ReleaseCreationDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.ReleaseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,14 +19,15 @@ public class ReleaseController {
     this.releaseService = releaseService;
   }
 
-  @PostMapping("/{candidateId}")
-  public ResponseEntity<ReleaseDTO> createRelease(@PathVariable String candidateId,
-                                                  @RequestBody ReleaseDTO dto) {
-    return new ResponseEntity<>(releaseService.createRelease(candidateId, dto), HttpStatus.CREATED);
+  @PostMapping("/movie/{movieId}/{infoHash}")
+  public ResponseEntity<ReleaseDTO> createRelease(@PathVariable String movieId,
+                                                  @PathVariable String infoHash,
+                                                  @RequestBody ReleaseCreationDTO dto) {
+    return new ResponseEntity<>(releaseService.createRelease(movieId, infoHash, dto), HttpStatus.CREATED);
   }
 
-  @GetMapping("/{candidateId}")
-  public ResponseEntity<ReleaseDTO> getRelease(@PathVariable String candidateId) {
-    return ResponseEntity.ok(releaseService.getRelease(candidateId));
+  @GetMapping("/{infoHash}")
+  public ResponseEntity<ReleaseDTO> getRelease(@PathVariable String infoHash) {
+    return ResponseEntity.ok(releaseService.getRelease(infoHash));
   }
 }

@@ -12,6 +12,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class MovieService {
 
@@ -33,7 +35,11 @@ public class MovieService {
 
   @Transactional
   public MovieDTO createMovie(MovieCreationDTO dto) {
-    Movie movie = new Movie(dto.originalTitle(), dto.year(), dto.imdbId(), dto.tmdbId(), dto.radarrId());
+    Movie movie = new Movie(dto.originalTitle(), dto.originalLocale(), dto.releaseDate(),
+        dto.runtimeMinutes(), dto.tmdbId(), dto.imdbId());
+    if (dto.alternativeTitles() != null) {
+      movie.setAlternativeTitles(dto.alternativeTitles());
+    }
     movieRepository.save(movie);
     return MovieDTO.from(movie);
   }
@@ -42,7 +48,56 @@ public class MovieService {
   public MovieDTO updateMovie(String idStr, MovieCreationDTO dto) {
     Long id = Util.validateTSID(idStr);
     Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
-    movie.update(dto.originalTitle(), dto.year(), dto.imdbId(), dto.tmdbId(), dto.radarrId());
+    movie.update(dto.originalTitle(), dto.originalLocale(), dto.releaseDate(),
+        dto.runtimeMinutes(), dto.tmdbId(), dto.imdbId());
+    if (dto.alternativeTitles() != null) {
+      movie.setAlternativeTitles(dto.alternativeTitles());
+    }
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO addToBlackList(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.addToBlackList(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO removeFromBlackList(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.removeFromBlackList(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO addToWhiteList(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.addToWhiteList(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO removeFromWhiteList(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.removeFromWhiteList(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO setForceScan(String idStr, boolean forceScan) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.setForceScan(forceScan);
     movieRepository.save(movie);
     return MovieDTO.from(movie);
   }

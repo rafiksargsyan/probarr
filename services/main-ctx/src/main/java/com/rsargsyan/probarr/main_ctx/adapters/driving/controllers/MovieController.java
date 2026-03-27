@@ -42,4 +42,34 @@ public class MovieController {
                                               @RequestBody MovieCreationDTO dto) {
     return ResponseEntity.ok(movieService.updateMovie(id, dto));
   }
+
+  @PatchMapping("/{id}/force-scan")
+  public ResponseEntity<MovieDTO> setForceScan(@PathVariable String id,
+                                               @RequestParam boolean value) {
+    return ResponseEntity.ok(movieService.setForceScan(id, value));
+  }
+
+  @PostMapping("/{id}/blacklist/{infoHash}")
+  public ResponseEntity<MovieDTO> addToBlackList(@PathVariable String id,
+                                                 @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.addToBlackList(id, infoHash));
+  }
+
+  @DeleteMapping("/{id}/blacklist/{infoHash}")
+  public ResponseEntity<MovieDTO> removeFromBlackList(@PathVariable String id,
+                                                      @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.removeFromBlackList(id, infoHash));
+  }
+
+  @PostMapping("/{id}/whitelist/{infoHash}")
+  public ResponseEntity<MovieDTO> addToWhiteList(@PathVariable String id,
+                                                 @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.addToWhiteList(id, infoHash));
+  }
+
+  @DeleteMapping("/{id}/whitelist/{infoHash}")
+  public ResponseEntity<MovieDTO> removeFromWhiteList(@PathVariable String id,
+                                                      @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.removeFromWhiteList(id, infoHash));
+  }
 }

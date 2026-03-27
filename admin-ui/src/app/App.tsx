@@ -11,10 +11,12 @@ import { TVShowDetailPage } from '../pages/TVShowDetailPage';
 import { SeasonDetailPage } from '../pages/SeasonDetailPage';
 import { CandidatesPage } from '../pages/CandidatesPage';
 import { CandidateDetailPage } from '../pages/CandidateDetailPage';
+import { EmailConfirmation } from '../components/EmailConfirmation/EmailConfirmation';
 
 export default function App() {
   return (
     <AuthProvider>
+      <EmailConfirmation />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

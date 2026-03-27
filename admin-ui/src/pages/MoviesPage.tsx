@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -23,7 +24,8 @@ import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createMovie, listMovies } from '../api/movies';
-import type { Movie } from '../types';
+import type { Locale, Movie } from '../types';
+import { LOCALES } from '../types';
 
 export function MoviesPage() {
   const { user } = useAuth();
@@ -41,10 +43,11 @@ export function MoviesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
-    year: '',
-    imdbId: '',
+    originalLocale: 'EN_US' as Locale,
+    releaseDate: '',
+    runtimeMinutes: '',
     tmdbId: '',
-    radarrId: '',
+    alternativeTitles: '',
   });
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export function MoviesPage() {
   }, [user, page, rowsPerPage]);
 
   function resetForm() {
-    setForm({ originalTitle: '', year: '', imdbId: '', tmdbId: '', radarrId: '' });
+    setForm({ originalTitle: '', originalLocale: 'EN_US', releaseDate: '', runtimeMinutes: '', tmdbId: '', alternativeTitles: '' });
     setFormError(null);
   }
 
@@ -71,10 +74,11 @@ export function MoviesPage() {
     try {
       await createMovie(user, {
         originalTitle: form.originalTitle.trim(),
-        year: form.year ? parseInt(form.year) : null,
-        imdbId: form.imdbId.trim() || null,
+        originalLocale: form.originalLocale,
+        releaseDate: form.releaseDate || null,
+        runtimeMinutes: form.runtimeMinutes ? parseInt(form.runtimeMinutes) : null,
         tmdbId: form.tmdbId ? parseInt(form.tmdbId) : null,
-        radarrId: form.radarrId ? parseInt(form.radarrId) : null,
+        alternativeTitles: form.alternativeTitles ? form.alternativeTitles.split('\n').map(t => t.trim()).filter(Boolean) : [],
       });
       setDialogOpen(false);
       resetForm();
@@ -113,10 +117,10 @@ export function MoviesPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Title</TableCell>
-                  <TableCell>Year</TableCell>
-                  <TableCell>IMDB ID</TableCell>
+                  <TableCell>Language</TableCell>
+                  <TableCell>Release Date</TableCell>
+                  <TableCell>Runtime</TableCell>
                   <TableCell>TMDB ID</TableCell>
-                  <TableCell>Radarr ID</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -128,15 +132,15 @@ export function MoviesPage() {
                     onClick={() => navigate(`/movies/${m.id}`)}
                   >
                     <TableCell>{m.originalTitle}</TableCell>
-                    <TableCell>{m.year ?? '—'}</TableCell>
-                    <TableCell>{m.imdbId ?? '—'}</TableCell>
+                    <TableCell>{m.originalLocale}</TableCell>
+                    <TableCell>{m.releaseDate ?? '—'}</TableCell>
+                    <TableCell>{m.runtimeMinutes != null ? `${m.runtimeMinutes}m` : '—'}</TableCell>
                     <TableCell>{m.tmdbId ?? '—'}</TableCell>
-                    <TableCell>{m.radarrId ?? '—'}</TableCell>
                   </TableRow>
                 ))}
                 {movies.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary' }}>
+                    <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary' }}>
                       No movies yet
                     </TableCell>
                   </TableRow>
@@ -168,15 +172,27 @@ export function MoviesPage() {
             autoFocus
           />
           <TextField
-            label="Year"
-            type="number"
-            value={form.year}
-            onChange={(e) => setForm({ ...form, year: e.target.value })}
+            select
+            label="Original Language"
+            value={form.originalLocale}
+            onChange={(e) => setForm({ ...form, originalLocale: e.target.value as Locale })}
+          >
+            {LOCALES.map((l) => (
+              <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Release Date"
+            type="date"
+            value={form.releaseDate}
+            onChange={(e) => setForm({ ...form, releaseDate: e.target.value })}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
           <TextField
-            label="IMDB ID"
-            value={form.imdbId}
-            onChange={(e) => setForm({ ...form, imdbId: e.target.value })}
+            label="Runtime (minutes)"
+            type="number"
+            value={form.runtimeMinutes}
+            onChange={(e) => setForm({ ...form, runtimeMinutes: e.target.value })}
           />
           <TextField
             label="TMDB ID"
@@ -185,10 +201,11 @@ export function MoviesPage() {
             onChange={(e) => setForm({ ...form, tmdbId: e.target.value })}
           />
           <TextField
-            label="Radarr ID"
-            type="number"
-            value={form.radarrId}
-            onChange={(e) => setForm({ ...form, radarrId: e.target.value })}
+            label="Alternative Titles (one per line)"
+            multiline
+            rows={3}
+            value={form.alternativeTitles}
+            onChange={(e) => setForm({ ...form, alternativeTitles: e.target.value })}
           />
         </DialogContent>
         <DialogActions>

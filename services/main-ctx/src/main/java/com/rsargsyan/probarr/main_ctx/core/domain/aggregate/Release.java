@@ -13,9 +13,13 @@ import java.util.List;
 public class Release extends AggregateRoot {
 
   @Getter
-  @OneToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "candidate_id", nullable = false, unique = true)
-  private ReleaseCandidate candidate;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "movie_id", nullable = false)
+  private Movie movie;
+
+  @Getter
+  @Column(nullable = false, unique = true)
+  private String infoHash;
 
   @Getter
   @Column(nullable = false)
@@ -56,11 +60,12 @@ public class Release extends AggregateRoot {
   @SuppressWarnings("unused")
   Release() {}
 
-  public Release(ReleaseCandidate candidate, String filePath, Long fileSizeBytes,
+  public Release(Movie movie, String infoHash, String filePath, Long fileSizeBytes,
                  String videoCodec, Resolution resolution, RipType ripType,
                  Integer runtimeSeconds, List<AudioTrack> audioTracks,
                  List<SubtitleTrack> subtitleTracks) {
-    this.candidate = candidate;
+    this.movie = movie;
+    this.infoHash = infoHash;
     this.filePath = filePath;
     this.fileSizeBytes = fileSizeBytes;
     this.videoCodec = videoCodec;

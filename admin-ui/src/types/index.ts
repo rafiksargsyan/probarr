@@ -6,13 +6,41 @@ export interface Page<T> {
   size: number;
 }
 
+export type Locale =
+  | 'EN_US' | 'EN_GB' | 'EN_AU'
+  | 'HY_AM' | 'RU_RU' | 'FR_FR' | 'DE_DE'
+  | 'ES_ES' | 'ES_MX' | 'IT_IT' | 'PT_BR'
+  | 'ZH_HANS_CN' | 'ZH_HANT_TW' | 'ZH_HANT_HK';
+
+export const LOCALES: { value: Locale; label: string }[] = [
+  { value: 'EN_US', label: 'English (US)' },
+  { value: 'EN_GB', label: 'English (UK)' },
+  { value: 'EN_AU', label: 'English (AU)' },
+  { value: 'HY_AM', label: 'Armenian' },
+  { value: 'RU_RU', label: 'Russian' },
+  { value: 'FR_FR', label: 'French' },
+  { value: 'DE_DE', label: 'German' },
+  { value: 'ES_ES', label: 'Spanish (Spain)' },
+  { value: 'ES_MX', label: 'Spanish (Mexico)' },
+  { value: 'IT_IT', label: 'Italian' },
+  { value: 'PT_BR', label: 'Portuguese (Brazil)' },
+  { value: 'ZH_HANS_CN', label: 'Chinese (Simplified)' },
+  { value: 'ZH_HANT_TW', label: 'Chinese (Traditional, TW)' },
+  { value: 'ZH_HANT_HK', label: 'Chinese (Traditional, HK)' },
+];
+
 export interface Movie {
   id: string;
   originalTitle: string;
-  year: number | null;
-  imdbId: string | null;
+  originalLocale: Locale;
+  releaseDate: string | null;
+  runtimeMinutes: number | null;
   tmdbId: number | null;
-  radarrId: number | null;
+  alternativeTitles: string[];
+  blackList: string[];
+  whiteList: string[];
+  lastScanAt: string | null;
+  forceScan: boolean;
   createdAt: string;
 }
 
