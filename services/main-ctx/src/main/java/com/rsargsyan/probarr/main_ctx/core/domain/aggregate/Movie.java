@@ -40,22 +40,24 @@ public class Movie extends AggregateRoot {
   private String imdbId;
 
   @Getter
-  @ElementCollection
-  @CollectionTable(name = "movie_alternative_titles", joinColumns = @JoinColumn(name = "movie_id"))
-  @Column(name = "title")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
   private List<String> alternativeTitles = new ArrayList<>();
 
   @Getter
-  @ElementCollection
-  @CollectionTable(name = "movie_blacklist", joinColumns = @JoinColumn(name = "movie_id"))
-  @Column(name = "candidate_id")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
   private List<String> blackList = new ArrayList<>();
 
   @Getter
-  @ElementCollection
-  @CollectionTable(name = "movie_whitelist", joinColumns = @JoinColumn(name = "movie_id"))
-  @Column(name = "candidate_id")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
   private List<String> whiteList = new ArrayList<>();
+
+  @Getter
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
+  private List<String> coolDownList = new ArrayList<>();
 
   @Getter
   @JdbcTypeCode(SqlTypes.JSON)
@@ -64,6 +66,9 @@ public class Movie extends AggregateRoot {
 
   @Getter
   private Instant lastScanAt;
+
+  @Getter
+  private Instant lastEnrichedAt;
 
   @Getter
   private boolean forceScan = false;
@@ -123,6 +128,13 @@ public class Movie extends AggregateRoot {
     }
   }
 
+  public void addToCoolDown(String infoHash) {
+    if (!coolDownList.contains(infoHash)) {
+      coolDownList.add(infoHash);
+      touch();
+    }
+  }
+
   public void addToBlackList(String infoHash) {
     if (!blackList.contains(infoHash)) {
       blackList.add(infoHash);
@@ -151,6 +163,43 @@ public class Movie extends AggregateRoot {
 
   public void setForceScan(boolean forceScan) {
     this.forceScan = forceScan;
+    touch();
+  }
+
+  public boolean enrichFromTmdb(String titleEnUs, String titleRu, List<String> romanizedTitles,
+                                LocalDate releaseDate, Integer runtimeMinutes, String imdbId) {
+    boolean updated = false;
+
+    if (releaseDate != null && !releaseDate.equals(this.releaseDate)) {
+      this.releaseDate = releaseDate;
+      updated = true;
+    }
+    if (runtimeMinutes != null && !runtimeMinutes.equals(this.runtimeMinutes)) {
+      this.runtimeMinutes = runtimeMinutes;
+      updated = true;
+    }
+    if (imdbId != null && !imdbId.isBlank() && !imdbId.equals(this.imdbId)) {
+      this.imdbId = imdbId;
+      updated = true;
+    }
+    if (this.alternativeTitles.isEmpty()) {
+      List<String> titles = new java.util.ArrayList<>();
+      if (titleEnUs != null) titles.add(titleEnUs);
+      if (titleRu != null) titles.add(titleRu);
+      titles.addAll(romanizedTitles);
+      if (!titles.isEmpty()) {
+        this.alternativeTitles = titles;
+        updated = true;
+      }
+    }
+
+    this.lastEnrichedAt = Instant.now();
+    if (updated) touch();
+    return updated;
+  }
+
+  public void clearReleaseCandidates() {
+    this.releaseCandidates = new ArrayList<>();
     touch();
   }
 

@@ -28,8 +28,7 @@ public class MovieScannerService {
   }
 
   public void scanDueMovies() {
-//    Instant threshold = Instant.now().minus(config.movieScanIntervalHours, ChronoUnit.HOURS);
-    Instant threshold = Instant.now().minus(10, ChronoUnit.SECONDS);
+    Instant threshold = Instant.now().minus(config.movieScanIntervalSeconds, ChronoUnit.SECONDS);
     List<Long> ids = movieRepository.findIdsDueForScan(threshold);
     log.info("Found {} movie(s) due for scan", ids.size());
     for (Long id : ids) {

@@ -2,6 +2,7 @@ package com.rsargsyan.probarr.main_ctx.core.domain.aggregate;
 
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Edition;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Resolution;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.RipType;
 import jakarta.persistence.*;
@@ -44,6 +45,11 @@ public class Release extends AggregateRoot {
   private RipType ripType;
 
   @Getter
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  private Edition edition;
+
+  @Getter
   @Column(nullable = false)
   private Integer runtimeSeconds;
 
@@ -61,7 +67,7 @@ public class Release extends AggregateRoot {
   Release() {}
 
   public Release(Movie movie, String infoHash, String filePath, Long fileSizeBytes,
-                 String videoCodec, Resolution resolution, RipType ripType,
+                 String videoCodec, Resolution resolution, RipType ripType, Edition edition,
                  Integer runtimeSeconds, List<AudioTrack> audioTracks,
                  List<SubtitleTrack> subtitleTracks) {
     this.movie = movie;
@@ -71,6 +77,7 @@ public class Release extends AggregateRoot {
     this.videoCodec = videoCodec;
     this.resolution = resolution;
     this.ripType = ripType;
+    this.edition = edition;
     this.runtimeSeconds = runtimeSeconds;
     this.audioTracks = audioTracks;
     this.subtitleTracks = subtitleTracks;

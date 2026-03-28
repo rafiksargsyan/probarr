@@ -1,6 +1,9 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
+import com.rsargsyan.probarr.main_ctx.core.domain.service.ReleaseTitleFilter;
+import com.rsargsyan.probarr.main_ctx.core.domain.service.TitleLanguageParser;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Edition;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Resolution;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.RipType;
@@ -27,10 +30,16 @@ public class MovieScanTransactionService {
     this.indexerClient = indexerClient;
   }
 
-  @Transactional
   public void scanMovie(Long movieId) {
+    // Load just enough to call the indexer — no transaction yet
     Movie movie = movieRepository.findById(movieId)
         .orElseThrow(() -> new IllegalArgumentException("Movie not found: " + movieId));
+    if (!movie.getReleaseCandidates().isEmpty()) {
+      log.info("Skipping scan for '{}' — {} candidate(s) already pending",
+          movie.getOriginalTitle(), movie.getReleaseCandidates().size());
+      return;
+    }
+
     log.info("Scanning movie '{}' imdbId={}", movie.getOriginalTitle(), movie.getImdbId());
 
     List<IndexerClient.IndexerRelease> releases = indexerClient.searchMovies(
@@ -38,37 +47,68 @@ public class MovieScanTransactionService {
 
     log.info("Got {} releases from indexer for '{}'", releases.size(), movie.getOriginalTitle());
 
-    int added = 0;
+    // Build candidates from indexer results — pure computation, no DB involvement
+    List<ReleaseCandidate> candidates = buildCandidates(releases, movie.getBlackList(), movie.getWhiteList());
+
+    // Short transaction: load fresh, add candidates, save
+    persistCandidates(movieId, candidates);
+    log.info("Scan complete for '{}': added {} candidate(s)", movie.getOriginalTitle(), candidates.size());
+  }
+
+  private List<ReleaseCandidate> buildCandidates(List<IndexerClient.IndexerRelease> releases,
+                                                  List<String> blackList, List<String> whiteList) {
+    List<ReleaseCandidate> result = new java.util.ArrayList<>();
     for (IndexerClient.IndexerRelease r : releases) {
       try {
         if (r.infoHash() == null || r.infoHash().isBlank()) continue;
         if (r.seeders() == null || r.seeders() <= 0) continue;
-        if (movie.getBlackList().contains(r.infoHash())) continue;
-        if (movie.getWhiteList().contains(r.infoHash())) continue;
+        if (blackList.contains(r.infoHash())) continue;
+        if (whiteList.contains(r.infoHash())) continue;
 
-        ReleaseCandidate candidate = new ReleaseCandidate(
+        RipType ripType = RipType.fromTitle(r.title());
+        if (ripType == null) continue;
+
+        Resolution resolution = Resolution.fromTitle(r.title());
+        if (resolution == null) {
+          if (ripType.isLowQuality()) {
+            resolution = Resolution.SD;
+          } else {
+            continue;
+          }
+        }
+
+        String rejection = ReleaseTitleFilter.reject(r.title(), r.sizeInBytes());
+        if (rejection != null) {
+          log.debug("Rejecting '{}' matched format '{}'", r.title(), rejection);
+          continue;
+        }
+
+        result.add(new ReleaseCandidate(
             r.infoHash(),
             r.downloadUrl(),
             r.infoUrl(),
             TorrentTracker.fromJackettName(r.tracker()).orElse(TorrentTracker.UNKNOWN),
             r.sizeInBytes(),
             r.seeders(),
-            Resolution.fromTitle(r.title()),
-            RipType.fromTitle(r.title()),
+            resolution,
+            ripType,
+            Edition.fromTitle(r.title()),
             r.publishDate(),
-            List.of(),
-            false
-        );
-
-        movie.addReleaseCandidate(candidate);
-        added++;
+            TitleLanguageParser.parse(r.title())
+        ));
       } catch (Exception e) {
         log.warn("Skipping release '{}': {}", r.title(), e.getMessage());
       }
     }
+    return result;
+  }
 
+  @Transactional
+  public void persistCandidates(Long movieId, List<ReleaseCandidate> candidates) {
+    Movie movie = movieRepository.findById(movieId)
+        .orElseThrow(() -> new IllegalArgumentException("Movie not found: " + movieId));
+    candidates.forEach(movie::addReleaseCandidate);
     movie.onScanCompleted();
     movieRepository.save(movie);
-    log.info("Scan complete for '{}': added {} candidate(s)", movie.getOriginalTitle(), added);
   }
 }

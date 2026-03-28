@@ -14,4 +14,10 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
 
   @Query("SELECT m.id FROM Movie m WHERE m.forceScan = true OR m.lastScanAt IS NULL OR m.lastScanAt < :threshold")
   List<Long> findIdsDueForScan(@Param("threshold") Instant threshold);
+
+  @Query(value = "SELECT id FROM movie WHERE jsonb_array_length(release_candidates) > 0", nativeQuery = true)
+  List<Long> findIdsWithPendingCandidates();
+
+  @Query("SELECT m.id FROM Movie m WHERE m.tmdbId IS NOT NULL AND (m.lastEnrichedAt IS NULL OR m.lastEnrichedAt < :threshold)")
+  List<Long> findIdsDueForEnrichment(@Param("threshold") Instant threshold);
 }

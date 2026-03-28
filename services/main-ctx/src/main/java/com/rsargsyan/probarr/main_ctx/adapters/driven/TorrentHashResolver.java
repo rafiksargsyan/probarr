@@ -17,7 +17,7 @@ public class TorrentHashResolver {
 
   private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
       .followRedirects(HttpClient.Redirect.NEVER)
-      .connectTimeout(Duration.ofSeconds(15))
+      .connectTimeout(Duration.ofSeconds(5))
       .build();
 
   public static String resolve(String magnetUri, String downloadUrl) {
@@ -32,7 +32,7 @@ public class TorrentHashResolver {
     try {
       HttpRequest request = HttpRequest.newBuilder()
           .uri(URI.create(downloadUrl))
-          .timeout(Duration.ofSeconds(30))
+          .timeout(Duration.ofSeconds(8))
           .GET()
           .build();
 

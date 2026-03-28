@@ -7,6 +7,7 @@ import com.rsargsyan.probarr.main_ctx.core.app.dto.ReleaseDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.SubtitleTrackDTO;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Release;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Edition;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
 import com.rsargsyan.probarr.main_ctx.core.exception.ResourceNotFoundException;
@@ -52,8 +53,9 @@ public class ReleaseService {
         ? dto.subtitleTracks().stream().map(SubtitleTrackDTO::toEntity).toList()
         : List.of();
 
+    Edition edition = dto.edition() != null ? dto.edition() : Edition.UNKNOWN;
     Release release = new Release(movie, infoHash, dto.filePath(), dto.fileSizeBytes(),
-        dto.videoCodec(), dto.resolution(), dto.ripType(), dto.runtimeSeconds(),
+        dto.videoCodec(), dto.resolution(), dto.ripType(), edition, dto.runtimeSeconds(),
         audioTracks, subtitleTracks);
     releaseRepository.save(release);
 

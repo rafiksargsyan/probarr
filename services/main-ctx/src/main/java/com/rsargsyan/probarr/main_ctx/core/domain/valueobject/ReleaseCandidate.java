@@ -12,7 +12,7 @@ public record ReleaseCandidate(
     Integer seeders,
     Resolution resolution,
     RipType ripType,
+    Edition edition,
     Instant releaseAt,
-    List<String> radarrLanguages,
-    boolean radarrIsUnknown
+    List<Language> languages
 ) {}
