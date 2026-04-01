@@ -43,6 +43,11 @@ public class MovieController {
     return ResponseEntity.ok(movieService.updateMovie(id, dto));
   }
 
+  @PostMapping("/{id}/scan")
+  public ResponseEntity<MovieDTO> triggerScan(@PathVariable String id) {
+    return ResponseEntity.ok(movieService.triggerScan(id));
+  }
+
   @PatchMapping("/{id}/force-scan")
   public ResponseEntity<MovieDTO> setForceScan(@PathVariable String id,
                                                @RequestParam boolean value) {
@@ -71,5 +76,17 @@ public class MovieController {
   public ResponseEntity<MovieDTO> removeFromWhiteList(@PathVariable String id,
                                                       @PathVariable String infoHash) {
     return ResponseEntity.ok(movieService.removeFromWhiteList(id, infoHash));
+  }
+
+  @PostMapping("/{id}/cooldown/{infoHash}")
+  public ResponseEntity<MovieDTO> addToCoolDown(@PathVariable String id,
+                                                @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.addToCoolDown(id, infoHash));
+  }
+
+  @DeleteMapping("/{id}/cooldown/{infoHash}")
+  public ResponseEntity<MovieDTO> removeFromCoolDown(@PathVariable String id,
+                                                     @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.removeFromCoolDown(id, infoHash));
   }
 }

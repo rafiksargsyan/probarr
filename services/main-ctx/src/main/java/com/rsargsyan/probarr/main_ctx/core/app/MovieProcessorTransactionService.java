@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rsargsyan.probarr.main_ctx.Config;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Release;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.GrabberrClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
@@ -65,7 +67,7 @@ public class MovieProcessorTransactionService {
 
     boolean shouldBreak = false;
     for (ReleaseCandidate rc : candidates) {
-      if (movie.getBlackList().contains(rc.infoHash())) continue;
+      if (movie.isBlacklisted(rc.infoHash())) continue;
       if (movie.getWhiteList().contains(rc.infoHash())) continue;
       if (movie.getCoolDownList().contains(rc.infoHash())) continue;
 
@@ -86,6 +88,9 @@ public class MovieProcessorTransactionService {
                 grabberrClient.submitTorrentFile(torrentBytes);
               }
             }
+          } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Permanent error submitting torrent rc={}: {}, adding to cool-down", rc.infoHash(), e.getMessage());
+            movie.addToCoolDown(rc.infoHash());
           } catch (Exception e) {
             log.warn("Failed to submit torrent rc={}: {}, will retry next cycle", rc.infoHash(), e.getMessage());
           }
@@ -104,11 +109,7 @@ public class MovieProcessorTransactionService {
             if (deadline != null && Instant.now().isAfter(deadline)) {
               log.warn("Torrent rc={} stuck in {} past timeout, moving to cool-down",
                   rc.infoHash(), torrent.status());
-              try {
-                grabberrClient.deleteTorrentDownload(torrent.id());
-              } catch (Exception e) {
-                log.error("Failed to delete torrent download for rc={}: {}", rc.infoHash(), e.getMessage());
-              }
+              deleteTorrentDownloadQuietly(torrent.id(), rc.infoHash());
               movie.addToCoolDown(rc.infoHash());
             } else {
               log.debug("Torrent rc={} status={}", rc.infoHash(), torrent.status());
@@ -116,42 +117,56 @@ public class MovieProcessorTransactionService {
             }
           } else if (torrent.status() == GrabberrClient.TorrentStatus.FAILED) {
             log.warn("Torrent rc={} failed metadata fetch, blacklisting", rc.infoHash());
-            movie.addToBlackList(rc.infoHash());
+            movie.addToBlackList(rc.infoHash(), BlacklistReason.TORRENT_FAILED);
+            deleteTorrentDownloadQuietly(torrent.id(), rc.infoHash());
           } else { // READY
             GrabberrClient.TorrentFile mediaFile = findMediaFile(torrent.files(), movie);
             if (mediaFile == null) {
               log.warn("No media file found for rc={}, blacklisting", rc.infoHash());
-              movie.addToBlackList(rc.infoHash());
+              movie.addToBlackList(rc.infoHash(), BlacklistReason.NO_MEDIA_FILE);
+              deleteTorrentDownloadQuietly(torrent.id(), rc.infoHash());
             } else if (mediaFile.sizeBytes() > config.maxFileSizeBytes) {
               log.warn("Media file too large ({} bytes > {} bytes) for rc={}, blacklisting",
                   mediaFile.sizeBytes(), config.maxFileSizeBytes, rc.infoHash());
-              movie.addToBlackList(rc.infoHash());
+              movie.addToBlackList(rc.infoHash(), BlacklistReason.FILE_TOO_LARGE);
+              deleteTorrentDownloadQuietly(torrent.id(), rc.infoHash());
             } else {
               GrabberrClient.FileDownloadDTO fileStatus = grabberrClient.getFileStatus(torrent.id(), mediaFile.index());
               if (fileStatus == null) {
                 log.info("Claiming file index={} for rc={}", mediaFile.index(), rc.infoHash());
                 grabberrClient.claimFile(torrent.id(), mediaFile.index());
                 shouldBreak = true;
+              } else if (fileStatus.status() == GrabberrClient.FileDownloadStatus.DOWNLOADED) {
+                if (fileStatus.metadata() != null) {
+                  if (validateMetadata(fileStatus.metadata(), movie, rc)) {
+                    log.info("Metadata valid for rc={}, requesting S3 cache", rc.infoHash());
+                    grabberrClient.cacheFile(torrent.id(), mediaFile.index());
+                  } else {
+                    movie.addToBlackList(rc.infoHash(), BlacklistReason.PROCESSING_FAILED);
+                    unclaimFileQuietly(torrent.id(), mediaFile.index(), rc.infoHash());
+                  }
+                } else {
+                  log.debug("File rc={} DOWNLOADED but no metadata yet, requesting S3 cache", rc.infoHash());
+                  grabberrClient.cacheFile(torrent.id(), mediaFile.index());
+                }
+                shouldBreak = true;
               } else if (fileStatus.status() == GrabberrClient.FileDownloadStatus.DONE) {
                 if (processMediaFile(movie, rc, mediaFile, fileStatus)) {
                   movie.addToWhiteList(rc.infoHash());
                 } else {
-                  movie.addToBlackList(rc.infoHash());
+                  movie.addToBlackList(rc.infoHash(), BlacklistReason.PROCESSING_FAILED);
                 }
                 shouldBreak = true;
               } else if (fileStatus.status() == GrabberrClient.FileDownloadStatus.FAILED) {
                 log.warn("File download failed for rc={}, blacklisting", rc.infoHash());
-                movie.addToBlackList(rc.infoHash());
+                movie.addToBlackList(rc.infoHash(), BlacklistReason.FILE_DOWNLOAD_FAILED);
+                unclaimFileQuietly(torrent.id(), mediaFile.index(), rc.infoHash());
               } else {
                 boolean timedOut = isFileDownloadTimedOut(fileStatus);
                 if (timedOut) {
                   log.warn("File download timed out for rc={} status={}, unclaiming and moving to cool-down",
                       rc.infoHash(), fileStatus.status());
-                  try {
-                    grabberrClient.unclaimFile(torrent.id(), mediaFile.index());
-                  } catch (Exception e) {
-                    log.error("Failed to unclaim file for rc={}: {}", rc.infoHash(), e.getMessage());
-                  }
+                  unclaimFileQuietly(torrent.id(), mediaFile.index(), rc.infoHash());
                   movie.addToCoolDown(rc.infoHash());
                 } else {
                   log.debug("File rc={} status={} progress={}", rc.infoHash(), fileStatus.status(), fileStatus.progress());
@@ -161,9 +176,13 @@ public class MovieProcessorTransactionService {
             }
           }
         }
+      } catch (ResourceAccessException e) {
+        log.warn("Grabberr unreachable while processing rc={} for movie '{}', will retry next cycle: {}",
+            rc.infoHash(), movie.getOriginalTitle(), e.getMessage());
+        shouldBreak = true;
       } catch (Exception e) {
         log.error("Error processing rc={} for movie '{}': {}", rc.infoHash(), movie.getOriginalTitle(), e.getMessage());
-        movie.addToBlackList(rc.infoHash());
+        movie.addToBlackList(rc.infoHash(), BlacklistReason.PROCESSING_ERROR);
       }
 
       if (shouldBreak) break;
@@ -171,7 +190,7 @@ public class MovieProcessorTransactionService {
 
     // Check if all candidates are resolved
     boolean allDone = candidates.stream().allMatch(rc ->
-        movie.getBlackList().contains(rc.infoHash())
+        movie.isBlacklisted(rc.infoHash())
         || movie.getWhiteList().contains(rc.infoHash())
         || movie.getCoolDownList().contains(rc.infoHash()));
     if (allDone) {
@@ -362,6 +381,54 @@ public class MovieProcessorTransactionService {
       throw new IllegalStateException("Empty response fetching torrent from: " + downloadUrl);
     }
     return bytes;
+  }
+
+  private boolean validateMetadata(String metadataJson, Movie movie, ReleaseCandidate rc) {
+    try {
+      com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(metadataJson);
+      com.fasterxml.jackson.databind.JsonNode streams = root.path("streams");
+      if (streams.isEmpty() || !"video".equals(streams.get(0).path("codec_type").asText())) {
+        log.warn("First stream is not video for rc={}", rc.infoHash());
+        return false;
+      }
+      boolean hasAudio = false;
+      for (com.fasterxml.jackson.databind.JsonNode s : streams) {
+        if ("audio".equals(s.path("codec_type").asText())) { hasAudio = true; break; }
+      }
+      if (!hasAudio) {
+        log.warn("No audio stream for rc={}", rc.infoHash());
+        return false;
+      }
+      String durationStr = root.path("format").path("duration").asText(null);
+      if (durationStr != null && movie.getRuntimeMinutes() != null) {
+        double duration = Double.parseDouble(durationStr);
+        double expected = movie.getRuntimeMinutes() * 60.0;
+        if (Math.abs(duration - expected) > 0.2 * expected) {
+          log.warn("Duration mismatch for rc={}: got {}s expected ~{}s", rc.infoHash(), (int) duration, (int) expected);
+          return false;
+        }
+      }
+      return true;
+    } catch (Exception e) {
+      log.warn("Failed to parse metadata for rc={}: {}", rc.infoHash(), e.getMessage());
+      return false;
+    }
+  }
+
+  private void deleteTorrentDownloadQuietly(String torrentDownloadId, String infoHash) {
+    try {
+      grabberrClient.deleteTorrentDownload(torrentDownloadId);
+    } catch (Exception e) {
+      log.error("Failed to delete torrent download for rc={}: {}", infoHash, e.getMessage());
+    }
+  }
+
+  private void unclaimFileQuietly(String torrentDownloadId, int fileIndex, String infoHash) {
+    try {
+      grabberrClient.unclaimFile(torrentDownloadId, fileIndex);
+    } catch (Exception e) {
+      log.error("Failed to unclaim file for rc={}: {}", infoHash, e.getMessage());
+    }
   }
 
   private Comparator<ReleaseCandidate> releaseCandidateComparator() {

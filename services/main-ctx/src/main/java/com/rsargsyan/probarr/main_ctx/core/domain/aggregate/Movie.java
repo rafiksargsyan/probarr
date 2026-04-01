@@ -1,5 +1,7 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.aggregate;
 
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistEntry;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.exception.InvalidTitleException;
@@ -47,7 +49,7 @@ public class Movie extends AggregateRoot {
   @Getter
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")
-  private List<String> blackList = new ArrayList<>();
+  private List<BlacklistEntry> blackList = new ArrayList<>();
 
   @Getter
   @JdbcTypeCode(SqlTypes.JSON)
@@ -135,17 +137,28 @@ public class Movie extends AggregateRoot {
     }
   }
 
-  public void addToBlackList(String infoHash) {
-    if (!blackList.contains(infoHash)) {
-      blackList.add(infoHash);
+  public void removeFromCoolDown(String infoHash) {
+    if (coolDownList.remove(infoHash)) {
+      touch();
+    }
+  }
+
+  public void addToBlackList(String infoHash, BlacklistReason reason) {
+    boolean exists = blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash));
+    if (!exists) {
+      blackList.add(new BlacklistEntry(infoHash, reason));
       touch();
     }
   }
 
   public void removeFromBlackList(String infoHash) {
-    if (blackList.remove(infoHash)) {
+    if (blackList.removeIf(e -> e.infoHash().equals(infoHash))) {
       touch();
     }
+  }
+
+  public boolean isBlacklisted(String infoHash) {
+    return blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash));
   }
 
   public void addToWhiteList(String infoHash) {

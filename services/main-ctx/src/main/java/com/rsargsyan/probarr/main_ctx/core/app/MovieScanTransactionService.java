@@ -48,7 +48,7 @@ public class MovieScanTransactionService {
     log.info("Got {} releases from indexer for '{}'", releases.size(), movie.getOriginalTitle());
 
     // Build candidates from indexer results — pure computation, no DB involvement
-    List<ReleaseCandidate> candidates = buildCandidates(releases, movie.getBlackList(), movie.getWhiteList());
+    List<ReleaseCandidate> candidates = buildCandidates(releases, movie.getBlackList().stream().map(e -> e.infoHash()).toList(), movie.getWhiteList());
 
     // Short transaction: load fresh, add candidates, save
     persistCandidates(movieId, candidates);
@@ -60,26 +60,42 @@ public class MovieScanTransactionService {
     List<ReleaseCandidate> result = new java.util.ArrayList<>();
     for (IndexerClient.IndexerRelease r : releases) {
       try {
-        if (r.infoHash() == null || r.infoHash().isBlank()) continue;
-        if (r.seeders() == null || r.seeders() <= 0) continue;
-        if (blackList.contains(r.infoHash())) continue;
-        if (whiteList.contains(r.infoHash())) continue;
+        if (r.infoHash() == null || r.infoHash().isBlank()) {
+          log.debug("Skipping '{}': no infoHash", r.title());
+          continue;
+        }
+        if (r.seeders() == null || r.seeders() <= 0) {
+          log.debug("Skipping '{}': no seeders", r.title());
+          continue;
+        }
+        if (blackList.contains(r.infoHash())) {
+          log.debug("Skipping '{}': blacklisted ({})", r.title(), r.infoHash());
+          continue;
+        }
+        if (whiteList.contains(r.infoHash())) {
+          log.debug("Skipping '{}': already whitelisted ({})", r.title(), r.infoHash());
+          continue;
+        }
 
         RipType ripType = RipType.fromTitle(r.title());
-        if (ripType == null) continue;
+        if (ripType == null) {
+          log.debug("Skipping '{}': unrecognized rip type", r.title());
+          continue;
+        }
 
         Resolution resolution = Resolution.fromTitle(r.title());
         if (resolution == null) {
           if (ripType.isLowQuality()) {
             resolution = Resolution.SD;
           } else {
+            log.debug("Skipping '{}': unrecognized resolution for ripType={}", r.title(), ripType);
             continue;
           }
         }
 
         String rejection = ReleaseTitleFilter.reject(r.title(), r.sizeInBytes());
         if (rejection != null) {
-          log.debug("Rejecting '{}' matched format '{}'", r.title(), rejection);
+          log.debug("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
           continue;
         }
 

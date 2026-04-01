@@ -3,24 +3,50 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   MenuItem,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getMovie, updateMovie } from '../api/movies';
+import {
+  getMovie, updateMovie, triggerScan,
+  addToBlackList, removeFromBlackList,
+  addToWhiteList, removeFromWhiteList,
+  addToCoolDown, removeFromCoolDown,
+} from '../api/movies';
 import type { Locale, Movie } from '../types';
 import { LOCALES } from '../types';
+
+function formatBytes(bytes: number | null): string {
+  if (bytes == null) return '—';
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+  return `${bytes} B`;
+}
+
+function formatDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return new Date(value).toLocaleString();
+}
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -45,6 +71,14 @@ export function MovieDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [blacklistInput, setBlacklistInput] = useState('');
+  const [whitelistInput, setWhitelistInput] = useState('');
+  const [cooldownInput, setCooldownInput] = useState('');
+  const [listError, setListError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<object | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
     originalLocale: 'EN_US' as Locale,
@@ -101,6 +135,29 @@ export function MovieDetailPage() {
     }
   }
 
+  async function handleScan() {
+    if (!user || !id) return;
+    setScanning(true);
+    setScanError(null);
+    try {
+      setMovie(await triggerScan(user, id));
+    } catch (e: unknown) {
+      setScanError(e instanceof Error ? e.message : 'Scan failed');
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function handleListAction(action: () => Promise<Movie>) {
+    if (!user || !id) return;
+    setListError(null);
+    try {
+      setMovie(await action());
+    } catch (e: unknown) {
+      setListError(e instanceof Error ? e.message : 'Operation failed');
+    }
+  }
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
@@ -129,24 +186,143 @@ export function MovieDetailPage() {
             <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>
               {movie.originalTitle}
             </Typography>
+            <Button size="small" startIcon={scanning ? <CircularProgress size={14} /> : <SearchIcon />} onClick={handleScan} disabled={scanning} sx={{ mr: 1 }}>
+              Scan
+            </Button>
             <Button size="small" startIcon={<EditIcon />} onClick={openEdit}>
               Edit
             </Button>
           </Box>
+          {scanError && <Alert severity="error" sx={{ mb: 1 }}>{scanError}</Alert>}
           <Divider sx={{ mb: 1 }} />
           <DetailRow label="ID" value={<Typography sx={{ fontSize: 13, fontFamily: 'monospace' }}>{movie.id}</Typography>} />
           <DetailRow label="Language" value={movie.originalLocale} />
           <DetailRow label="Release Date" value={movie.releaseDate} />
           <DetailRow label="Runtime" value={movie.runtimeMinutes != null ? `${movie.runtimeMinutes}m` : null} />
           <DetailRow label="TMDB ID" value={movie.tmdbId} />
-          <DetailRow label="Last Scan" value={movie.lastScanAt} />
+          <DetailRow label="Last Scan" value={formatDate(movie.lastScanAt)} />
           <DetailRow label="Force Scan" value={String(movie.forceScan)} />
-          <DetailRow label="Alternative Titles" value={movie.alternativeTitles.join(', ') || null} />
-          <DetailRow label="Blacklist" value={movie.blackList.join(', ') || null} />
-          <DetailRow label="Whitelist" value={movie.whiteList.join(', ') || null} />
-          <DetailRow label="Created At" value={movie.createdAt} />
+          <DetailRow label="Alternative Titles" value={movie.alternativeTitles?.join(', ') || null} />
+
+          {listError && <Alert severity="error" sx={{ my: 1 }}>{listError}</Alert>}
+
+          <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: 14, mb: 0.5 }}>Blacklist</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+              {movie.blackList?.map((e) => (
+                <Chip
+                  key={e.infoHash}
+                  label={`${e.infoHash} (${e.reason})`}
+                  size="small"
+                  onDelete={() => handleListAction(() => removeFromBlackList(user!, id!, e.infoHash))}
+                />
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField size="small" placeholder="info hash" value={blacklistInput} onChange={(e) => setBlacklistInput(e.target.value)} sx={{ flex: 1 }} />
+              <IconButton size="small" disabled={!blacklistInput.trim()} onClick={() => { handleListAction(() => addToBlackList(user!, id!, blacklistInput.trim())); setBlacklistInput(''); }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: 14, mb: 0.5 }}>Whitelist</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+              {movie.whiteList?.map((h) => (
+                <Chip
+                  key={h}
+                  label={h}
+                  size="small"
+                  onDelete={() => handleListAction(() => removeFromWhiteList(user!, id!, h))}
+                />
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField size="small" placeholder="info hash" value={whitelistInput} onChange={(e) => setWhitelistInput(e.target.value)} sx={{ flex: 1 }} />
+              <IconButton size="small" disabled={!whitelistInput.trim()} onClick={() => { handleListAction(() => addToWhiteList(user!, id!, whitelistInput.trim())); setWhitelistInput(''); }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Box sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: 14, mb: 0.5 }}>Cooldown</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+              {movie.coolDownList?.map((h) => (
+                <Chip
+                  key={h}
+                  label={h}
+                  size="small"
+                  onDelete={() => handleListAction(() => removeFromCoolDown(user!, id!, h))}
+                />
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField size="small" placeholder="info hash" value={cooldownInput} onChange={(e) => setCooldownInput(e.target.value)} sx={{ flex: 1 }} />
+              <IconButton size="small" disabled={!cooldownInput.trim()} onClick={() => { handleListAction(() => addToCoolDown(user!, id!, cooldownInput.trim())); setCooldownInput(''); }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <DetailRow label="Created At" value={formatDate(movie.createdAt)} />
+        </Paper>
+        <Paper sx={{ flex: '1 1 600px', p: 3 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+            Release Candidates ({movie.releaseCandidates?.length ?? 0})
+          </Typography>
+          <Divider sx={{ mb: 1 }} />
+          {!movie.releaseCandidates?.length ? (
+            <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>No candidates found.</Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Info Hash</TableCell>
+                  <TableCell>Tracker</TableCell>
+                  <TableCell>Size</TableCell>
+                  <TableCell>Seeders</TableCell>
+                  <TableCell>Resolution</TableCell>
+                  <TableCell>Rip</TableCell>
+                  <TableCell>Edition</TableCell>
+                  <TableCell>Languages</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {movie.releaseCandidates.map((rc) => (
+                  <TableRow key={rc.infoHash} hover sx={{ cursor: 'pointer' }} onClick={() => setSelectedCandidate(rc)}>
+                    <TableCell>
+                      <Typography sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {rc.infoHash.slice(0, 8)}…
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.tracker}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{formatBytes(rc.sizeInBytes)}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.seeders ?? '—'}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.resolution}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.ripType}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.edition ?? '—'}</TableCell>
+                    <TableCell sx={{ fontSize: 12 }}>{rc.languages?.join(', ') || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </Paper>
       </Box>
+
+      <Dialog open={!!selectedCandidate} onClose={() => setSelectedCandidate(null)} maxWidth="md" fullWidth>
+        <DialogTitle>Release Candidate</DialogTitle>
+        <DialogContent>
+          <Box component="pre" sx={{ fontSize: 12, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', m: 0 }}>
+            {JSON.stringify(selectedCandidate, null, 2)}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedCandidate(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Movie</DialogTitle>

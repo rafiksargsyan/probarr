@@ -26,6 +26,9 @@ export function updateMovie(user: User, id: string, body: MovieBody): Promise<Mo
 export function setForceScan(user: User, id: string, value: boolean): Promise<Movie> {
   return apiRequest(`/movie/${id}/force-scan?value=${value}`, user, { method: 'PATCH' });
 }
+export function triggerScan(user: User, id: string): Promise<Movie> {
+  return apiRequest(`/movie/${id}/scan`, user, { method: 'POST' });
+}
 export function addToBlackList(user: User, id: string, candidateId: string): Promise<Movie> {
   return apiRequest(`/movie/${id}/blacklist/${candidateId}`, user, { method: 'POST' });
 }
@@ -37,4 +40,10 @@ export function addToWhiteList(user: User, id: string, candidateId: string): Pro
 }
 export function removeFromWhiteList(user: User, id: string, candidateId: string): Promise<Movie> {
   return apiRequest(`/movie/${id}/whitelist/${candidateId}`, user, { method: 'DELETE' });
+}
+export function addToCoolDown(user: User, id: string, infoHash: string): Promise<Movie> {
+  return apiRequest(`/movie/${id}/cooldown/${infoHash}`, user, { method: 'POST' });
+}
+export function removeFromCoolDown(user: User, id: string, infoHash: string): Promise<Movie> {
+  return apiRequest(`/movie/${id}/cooldown/${infoHash}`, user, { method: 'DELETE' });
 }

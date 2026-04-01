@@ -4,6 +4,7 @@ import com.rsargsyan.probarr.main_ctx.core.Util;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.MovieCreationDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.MovieDTO;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.exception.ResourceNotFoundException;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
 import jakarta.transaction.Transactional;
@@ -19,11 +20,15 @@ import java.util.List;
 public class MovieService {
 
   private final MovieRepository movieRepository;
+  private final MovieScanTransactionService movieScanTransactionService;
   private final ApplicationEventPublisher eventPublisher;
 
   @Autowired
-  public MovieService(MovieRepository movieRepository, ApplicationEventPublisher eventPublisher) {
+  public MovieService(MovieRepository movieRepository,
+                      MovieScanTransactionService movieScanTransactionService,
+                      ApplicationEventPublisher eventPublisher) {
     this.movieRepository = movieRepository;
+    this.movieScanTransactionService = movieScanTransactionService;
     this.eventPublisher = eventPublisher;
   }
 
@@ -71,7 +76,7 @@ public class MovieService {
   public MovieDTO addToBlackList(String idStr, String infoHash) {
     Long id = Util.validateTSID(idStr);
     Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
-    movie.addToBlackList(infoHash);
+    movie.addToBlackList(infoHash, BlacklistReason.MANUAL);
     movieRepository.save(movie);
     return MovieDTO.from(movie);
   }
@@ -101,6 +106,30 @@ public class MovieService {
     movie.removeFromWhiteList(infoHash);
     movieRepository.save(movie);
     return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO addToCoolDown(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.addToCoolDown(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
+  public MovieDTO removeFromCoolDown(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.removeFromCoolDown(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  public MovieDTO triggerScan(String idStr) {
+    Long id = Util.validateTSID(idStr);
+    movieScanTransactionService.scanMovie(id);
+    return MovieDTO.from(movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new));
   }
 
   @Transactional

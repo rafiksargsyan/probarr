@@ -19,7 +19,7 @@ public class TitleLanguageParser {
       "|rodubbed" +
       "|\\b(?:dublado|pt-BR)\\b" +
       "|greek" +
-      "|\\b(?:FR|VO|VF|VFF|VFQ|VFI|VF2|TRUEFRENCH|FRENCH|FRE|FRA)\\b" +
+      "|\\b(?:FR|VF|VFF|VFQ|VFI|VF2|TRUEFRENCH|FRENCH|FRE|FRA)\\b" +
       "|\\b(?:rus|ru)\\b" +
       "|\\b(?:HUNDUB|HUN)\\b" +
       "|\\b(?:HebDub|HebDubbed)\\b" +
@@ -32,7 +32,7 @@ public class TitleLanguageParser {
       "|\\bJAP\\b" +
       "|\\bKOR\\b" +
       "|\\burdu\\b" +
-      "|\\b(?:orig|original)\\b"
+      "|\\b(?:VO|orig|original)\\b"
   );
 
   // Case-sensitive regex for short ISO codes
@@ -130,7 +130,8 @@ public class TitleLanguageParser {
     if (match.equals("rodubbed")) return Language.ROMANIAN;
     if (match.equals("dublado") || match.equals("pt-br")) return Language.PORTUGUESE_BR;
     if (match.equals("greek")) return Language.GREEK;
-    if (match.matches("fr|vo|vf|vff|vfq|vfi|vf2|truefrench|french|fre|fra")) return Language.FRENCH;
+    if (match.matches("fr|vf|vff|vfq|vfi|vf2|truefrench|french|fre|fra")) return Language.FRENCH;
+    if (match.equals("vo")) return Language.ORIGINAL;
     if (match.equals("rus") || match.equals("ru")) return Language.RUSSIAN;
     if (match.equals("hundub") || match.equals("hun")) return Language.HUNGARIAN;
     if (match.equals("hebdub") || match.equals("hebdubbed")) return Language.HEBREW;

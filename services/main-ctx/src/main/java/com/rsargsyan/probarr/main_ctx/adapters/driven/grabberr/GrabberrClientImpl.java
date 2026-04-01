@@ -107,6 +107,15 @@ public class GrabberrClientImpl implements GrabberrClient {
         .toBodilessEntity();
   }
 
+  @Override
+  public FileDownloadDTO cacheFile(String torrentDownloadId, int fileIndex) {
+    GrabberrFileDownloadDTO dto = restClient.post()
+        .uri("/torrent-download/{id}/file/{fileIndex}/cache", torrentDownloadId, fileIndex)
+        .retrieve()
+        .body(GrabberrFileDownloadDTO.class);
+    return toPort(dto);
+  }
+
   private TorrentDownloadDTO toPort(GrabberrTorrentDownloadDTO dto) {
     if (dto == null) return null;
     List<TorrentFile> files = dto.files() == null ? List.of() :
@@ -118,7 +127,7 @@ public class GrabberrClientImpl implements GrabberrClient {
     if (dto == null) return null;
     return new FileDownloadDTO(dto.id(), dto.fileIndex(), FileDownloadStatus.valueOf(dto.status()),
         dto.progress(), dto.signedUrl(), dto.fileSizeBytes(),
-        dto.createdAt(), dto.downloadingAt());
+        dto.createdAt(), dto.downloadingAt(), dto.metadata());
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -146,6 +155,7 @@ public class GrabberrClientImpl implements GrabberrClient {
       @JsonProperty("signedUrl") String signedUrl,
       @JsonProperty("fileSizeBytes") Long fileSizeBytes,
       @JsonProperty("createdAt") Instant createdAt,
-      @JsonProperty("downloadingAt") Instant downloadingAt
+      @JsonProperty("downloadingAt") Instant downloadingAt,
+      @JsonProperty("metadata") String metadata
   ) {}
 }

@@ -29,6 +29,20 @@ export const LOCALES: { value: Locale; label: string }[] = [
   { value: 'ZH_HANT_HK', label: 'Chinese (Traditional, HK)' },
 ];
 
+export interface MovieReleaseCandidate {
+  infoHash: string;
+  downloadUrl: string | null;
+  infoUrl: string | null;
+  tracker: string;
+  sizeInBytes: number | null;
+  seeders: number | null;
+  resolution: string;
+  ripType: string;
+  edition: string | null;
+  releaseAt: string | null;
+  languages: string[];
+}
+
 export interface Movie {
   id: string;
   originalTitle: string;
@@ -37,8 +51,10 @@ export interface Movie {
   runtimeMinutes: number | null;
   tmdbId: number | null;
   alternativeTitles: string[];
-  blackList: string[];
+  releaseCandidates: MovieReleaseCandidate[];
+  blackList: { infoHash: string; reason: string }[];
   whiteList: string[];
+  coolDownList: string[];
   lastScanAt: string | null;
   forceScan: boolean;
   createdAt: string;

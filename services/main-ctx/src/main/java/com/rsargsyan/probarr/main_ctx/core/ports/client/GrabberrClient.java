@@ -20,15 +20,17 @@ public interface GrabberrClient {
 
   void deleteTorrentDownload(String torrentDownloadId);
 
+  FileDownloadDTO cacheFile(String torrentDownloadId, int fileIndex);
+
   record TorrentDownloadDTO(String id, String infoHash, TorrentStatus status, List<TorrentFile> files, Instant createdAt) {}
 
   record FileDownloadDTO(String id, Integer fileIndex, FileDownloadStatus status,
                          Float progress, String signedUrl, Long fileSizeBytes,
-                         Instant createdAt, Instant downloadingAt) {}
+                         Instant createdAt, Instant downloadingAt, String metadata) {}
 
   record TorrentFile(int index, String name, long sizeBytes) {}
 
   enum TorrentStatus { QUEUED, FETCHING_METADATA, READY, FAILED }
 
-  enum FileDownloadStatus { SUBMITTED, DOWNLOADING, TRANSFERRING, DONE, FAILED }
+  enum FileDownloadStatus { SUBMITTED, DOWNLOADING, DOWNLOADED, TRANSFERRING, DONE, FAILED }
 }
