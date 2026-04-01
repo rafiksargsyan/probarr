@@ -24,6 +24,8 @@ public record MovieDTO(
     List<String> coolDownList,
     Instant lastScanAt,
     boolean forceScan,
+    boolean scanning,
+    Instant scanStartedAt,
     Instant createdAt
 ) {
   public static MovieDTO from(Movie movie) {
@@ -42,6 +44,8 @@ public record MovieDTO(
         movie.getCoolDownList(),
         movie.getLastScanAt(),
         movie.isForceScan(),
+        movie.isScanning(),
+        movie.getScanStartedAt(),
         movie.getCreatedAt()
     );
   }

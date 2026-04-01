@@ -8,6 +8,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.exception.ResourceNotFoundException;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class MovieService {
 
@@ -128,7 +130,21 @@ public class MovieService {
 
   public MovieDTO triggerScan(String idStr) {
     Long id = Util.validateTSID(idStr);
-    movieScanTransactionService.scanMovie(id);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    if (!movie.getReleaseCandidates().isEmpty()) {
+      log.info("triggerScan: skipping '{}' — {} candidate(s) already pending",
+          movie.getOriginalTitle(), movie.getReleaseCandidates().size());
+      return MovieDTO.from(movie);
+    }
+    movieScanTransactionService.markScanning(id);
+    Thread.ofVirtual().start(() -> {
+      try {
+        movieScanTransactionService.scanMovie(id);
+      } catch (Exception e) {
+        log.error("Async scan failed for movie {}: {}", id, e.getMessage());
+        movieScanTransactionService.markScanDone(id);
+      }
+    });
     return MovieDTO.from(movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new));
   }
 

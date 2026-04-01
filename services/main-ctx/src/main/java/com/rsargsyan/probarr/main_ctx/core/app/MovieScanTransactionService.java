@@ -120,6 +120,22 @@ public class MovieScanTransactionService {
   }
 
   @Transactional
+  public void markScanning(Long movieId) {
+    Movie movie = movieRepository.findById(movieId)
+        .orElseThrow(() -> new IllegalArgumentException("Movie not found: " + movieId));
+    movie.markScanning();
+    movieRepository.save(movie);
+  }
+
+  @Transactional
+  public void markScanDone(Long movieId) {
+    movieRepository.findById(movieId).ifPresent(movie -> {
+      movie.markScanDone();
+      movieRepository.save(movie);
+    });
+  }
+
+  @Transactional
   public void persistCandidates(Long movieId, List<ReleaseCandidate> candidates) {
     Movie movie = movieRepository.findById(movieId)
         .orElseThrow(() -> new IllegalArgumentException("Movie not found: " + movieId));

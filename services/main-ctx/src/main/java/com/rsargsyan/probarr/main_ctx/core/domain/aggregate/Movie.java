@@ -10,6 +10,7 @@ import lombok.Getter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -74,6 +75,12 @@ public class Movie extends AggregateRoot {
 
   @Getter
   private boolean forceScan = false;
+
+  @Getter
+  private boolean scanning = false;
+
+  @Getter
+  private Instant scanStartedAt;
 
   @SuppressWarnings("unused")
   Movie() {}
@@ -174,6 +181,21 @@ public class Movie extends AggregateRoot {
     }
   }
 
+  public void markScanning() {
+    this.scanning = true;
+    this.scanStartedAt = Instant.now();
+    touch();
+  }
+
+  public void markScanDone() {
+    this.scanning = false;
+    touch();
+  }
+
+  public boolean isScanningStale(Duration timeout) {
+    return scanning && scanStartedAt != null && scanStartedAt.plus(timeout).isBefore(Instant.now());
+  }
+
   public void setForceScan(boolean forceScan) {
     this.forceScan = forceScan;
     touch();
@@ -219,6 +241,7 @@ public class Movie extends AggregateRoot {
   public void onScanCompleted() {
     this.lastScanAt = Instant.now();
     this.forceScan = false;
+    this.scanning = false;
     touch();
   }
 }

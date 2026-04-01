@@ -76,7 +76,6 @@ export function MovieDetailPage() {
   const [whitelistInput, setWhitelistInput] = useState('');
   const [cooldownInput, setCooldownInput] = useState('');
   const [listError, setListError] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<object | null>(null);
   const [form, setForm] = useState({
@@ -92,12 +91,22 @@ export function MovieDetailPage() {
     if (!user || !id) return;
     setLoading(true);
     getMovie(user, id)
-      .then((m) => {
-        setMovie(m);
-      })
+      .then((m) => setMovie(m))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [user, id]);
+
+  useEffect(() => {
+    if (!movie?.scanning) return;
+    const STALE_MS = 10 * 60 * 1000;
+    const isStale = movie.scanStartedAt && Date.now() - new Date(movie.scanStartedAt).getTime() > STALE_MS;
+    if (isStale) return;
+    const interval = setInterval(() => {
+      if (!user || !id) return;
+      getMovie(user, id).then((m) => setMovie(m)).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [movie?.scanning, movie?.scanStartedAt, user, id]);
 
   function openEdit() {
     if (!movie) return;
@@ -137,14 +146,11 @@ export function MovieDetailPage() {
 
   async function handleScan() {
     if (!user || !id) return;
-    setScanning(true);
     setScanError(null);
     try {
       setMovie(await triggerScan(user, id));
     } catch (e: unknown) {
       setScanError(e instanceof Error ? e.message : 'Scan failed');
-    } finally {
-      setScanning(false);
     }
   }
 
@@ -157,6 +163,10 @@ export function MovieDetailPage() {
       setListError(e instanceof Error ? e.message : 'Operation failed');
     }
   }
+
+  const STALE_MS = 10 * 60 * 1000;
+  const isScanningActive = !!movie?.scanning &&
+    !(movie.scanStartedAt && Date.now() - new Date(movie.scanStartedAt).getTime() > STALE_MS);
 
   if (loading) {
     return (
@@ -186,8 +196,8 @@ export function MovieDetailPage() {
             <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>
               {movie.originalTitle}
             </Typography>
-            <Button size="small" startIcon={scanning ? <CircularProgress size={14} /> : <SearchIcon />} onClick={handleScan} disabled={scanning} sx={{ mr: 1 }}>
-              Scan
+            <Button size="small" startIcon={isScanningActive ? <CircularProgress size={14} /> : <SearchIcon />} onClick={handleScan} disabled={isScanningActive} sx={{ mr: 1 }}>
+              {isScanningActive ? 'Scanning…' : 'Scan'}
             </Button>
             <Button size="small" startIcon={<EditIcon />} onClick={openEdit}>
               Edit

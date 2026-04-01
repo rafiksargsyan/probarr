@@ -57,6 +57,8 @@ export interface Movie {
   coolDownList: string[];
   lastScanAt: string | null;
   forceScan: boolean;
+  scanning: boolean;
+  scanStartedAt: string | null;
   createdAt: string;
 }
 

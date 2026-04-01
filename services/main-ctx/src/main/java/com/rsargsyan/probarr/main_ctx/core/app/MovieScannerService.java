@@ -1,11 +1,13 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
 import com.rsargsyan.probarr.main_ctx.Config;
+import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -13,6 +15,8 @@ import java.util.List;
 @Slf4j
 @Service
 public class MovieScannerService {
+
+  private static final Duration SCAN_STALE_TIMEOUT = Duration.ofMinutes(10);
 
   private final MovieRepository movieRepository;
   private final MovieScanTransactionService movieScanTransactionService;
@@ -32,6 +36,15 @@ public class MovieScannerService {
     List<Long> ids = movieRepository.findIdsDueForScan(threshold);
     log.info("Found {} movie(s) due for scan", ids.size());
     for (Long id : ids) {
+      Movie movie = movieRepository.findById(id).orElse(null);
+      if (movie == null) continue;
+      if (movie.isScanningStale(SCAN_STALE_TIMEOUT)) {
+        log.warn("Movie {} has stale scanning state, resetting", id);
+        movieScanTransactionService.markScanDone(id);
+      } else if (movie.isScanning()) {
+        log.info("Skipping scan for '{}' — already scanning", movie.getOriginalTitle());
+        continue;
+      }
       try {
         movieScanTransactionService.scanMovie(id);
       } catch (Exception e) {
