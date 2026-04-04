@@ -124,7 +124,8 @@ public class TVShowScanTransactionService {
             ripType,
             null,
             r.publishDate(),
-            TitleLanguageParser.parse(r.title())
+            TitleLanguageParser.parse(r.title()),
+            r.title()
         );
 
         for (Season season : seasons) {
@@ -229,7 +230,7 @@ public class TVShowScanTransactionService {
             r.infoHash(), r.downloadUrl(), r.infoUrl(),
             TorrentTracker.fromJackettName(r.tracker()).orElse(TorrentTracker.UNKNOWN),
             r.sizeInBytes(), r.seeders(), resolution, ripType, null,
-            r.publishDate(), TitleLanguageParser.parse(r.title())
+            r.publishDate(), TitleLanguageParser.parse(r.title()), r.title()
         );
 
         if (seasonNumber != null) {

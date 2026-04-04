@@ -289,6 +289,7 @@ export function MovieDetailPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell>Title</TableCell>
                   <TableCell>Info Hash</TableCell>
                   <TableCell>Tracker</TableCell>
                   <TableCell>Size</TableCell>
@@ -302,6 +303,7 @@ export function MovieDetailPage() {
               <TableBody>
                 {movie.releaseCandidates.map((rc) => (
                   <TableRow key={rc.infoHash} hover sx={{ cursor: 'pointer' }} onClick={() => setSelectedCandidate(rc)}>
+                    <TableCell sx={{ fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rc.title ?? '—'}</TableCell>
                     <TableCell>
                       <Typography sx={{ fontFamily: 'monospace', fontSize: 12 }}>
                         {rc.infoHash.slice(0, 8)}…

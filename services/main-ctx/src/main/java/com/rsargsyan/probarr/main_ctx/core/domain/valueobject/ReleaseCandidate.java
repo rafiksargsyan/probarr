@@ -14,5 +14,6 @@ public record ReleaseCandidate(
     RipType ripType,
     Edition edition,
     Instant releaseAt,
-    List<Language> languages
+    List<Language> languages,
+    String title
 ) {}

@@ -41,6 +41,7 @@ export interface MovieReleaseCandidate {
   edition: string | null;
   releaseAt: string | null;
   languages: string[];
+  title: string | null;
 }
 
 export interface Movie {

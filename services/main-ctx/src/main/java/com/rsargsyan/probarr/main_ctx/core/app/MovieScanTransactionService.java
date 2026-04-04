@@ -130,7 +130,8 @@ public class MovieScanTransactionService {
             ripType,
             Edition.fromTitle(r.title()),
             r.publishDate(),
-            TitleLanguageParser.parse(r.title())
+            TitleLanguageParser.parse(r.title()),
+            r.title()
         ));
       } catch (Exception e) {
         log.warn("Skipping release '{}': {}", r.title(), e.getMessage());
