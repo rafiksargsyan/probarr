@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Divider,
   Paper,
@@ -26,9 +27,14 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
       <Typography sx={{ width: 160, flexShrink: 0, color: 'text.secondary', fontSize: 14 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 14 }}>{value ?? '—'}</Typography>
+      <Box sx={{ fontSize: 14 }}>{value ?? <Typography sx={{ fontSize: 14 }}>—</Typography>}</Box>
     </Box>
   );
+}
+
+function formatDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return new Date(value).toLocaleString();
 }
 
 export function TVShowDetailPage() {
@@ -81,11 +87,27 @@ export function TVShowDetailPage() {
             {tvShow.originalTitle}
           </Typography>
           <Divider sx={{ mb: 1 }} />
-          <DetailRow label="ID" value={<Typography sx={{ fontSize: 13, fontFamily: 'monospace' }}>{tvShow.id}</Typography>} />
+          <DetailRow
+            label="ID"
+            value={<Typography sx={{ fontSize: 13, fontFamily: 'monospace' }}>{tvShow.id}</Typography>}
+          />
+          <DetailRow label="Language" value={tvShow.originalLocale} />
+          <DetailRow label="Release Date" value={tvShow.releaseDate} />
+          <DetailRow label="TMDB ID" value={tvShow.tmdbId} />
           <DetailRow label="IMDB ID" value={tvShow.imdbId} />
           <DetailRow label="TVDB ID" value={tvShow.tvdbId} />
-          <DetailRow label="Sonarr ID" value={tvShow.sonarrId} />
-          <DetailRow label="Created At" value={tvShow.createdAt} />
+          <DetailRow
+            label="Use TVDB"
+            value={
+              <Chip
+                label={tvShow.useTvdb ? 'Yes' : 'No'}
+                size="small"
+                color={tvShow.useTvdb ? 'primary' : 'default'}
+              />
+            }
+          />
+          <DetailRow label="Last Enriched" value={formatDate(tvShow.lastEnrichedAt)} />
+          <DetailRow label="Created At" value={formatDate(tvShow.createdAt)} />
         </Paper>
       </Box>
 
@@ -100,6 +122,8 @@ export function TVShowDetailPage() {
                 <TableCell>Season #</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Air Date</TableCell>
+                <TableCell>TMDB Season #</TableCell>
+                <TableCell>TVDB Season #</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -113,11 +137,13 @@ export function TVShowDetailPage() {
                   <TableCell>{s.seasonNumber}</TableCell>
                   <TableCell>{s.originalName ?? `Season ${s.seasonNumber}`}</TableCell>
                   <TableCell>{s.airDate ?? '—'}</TableCell>
+                  <TableCell>{s.tmdbSeasonNumber ?? '—'}</TableCell>
+                  <TableCell>{s.tvdbSeasonNumber ?? '—'}</TableCell>
                 </TableRow>
               ))}
               {seasons.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary' }}>
+                  <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary' }}>
                     No seasons yet
                   </TableCell>
                 </TableRow>

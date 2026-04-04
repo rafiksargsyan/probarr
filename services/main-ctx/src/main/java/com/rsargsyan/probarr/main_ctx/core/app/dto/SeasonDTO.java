@@ -9,7 +9,9 @@ public record SeasonDTO(
     String tvShowId,
     Integer seasonNumber,
     String originalName,
-    LocalDate airDate
+    LocalDate airDate,
+    Integer tmdbSeasonNumber,
+    Integer tvdbSeasonNumber
 ) {
   public static SeasonDTO from(Season season) {
     return new SeasonDTO(
@@ -17,7 +19,9 @@ public record SeasonDTO(
         season.getTvShow().getStrId(),
         season.getSeasonNumber(),
         season.getOriginalName(),
-        season.getAirDate()
+        season.getAirDate(),
+        season.getTmdbSeasonNumber(),
+        season.getTvdbSeasonNumber()
     );
   }
 }

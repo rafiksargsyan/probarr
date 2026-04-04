@@ -20,7 +20,6 @@ import {
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MovieIcon from '@mui/icons-material/Movie';
 import TvIcon from '@mui/icons-material/Tv';
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -31,7 +30,6 @@ const NAV_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { label: 'Movies', icon: <MovieIcon />, path: '/movies' },
   { label: 'TV Shows', icon: <TvIcon />, path: '/tvshows' },
-  { label: 'Candidates', icon: <CloudDownloadIcon />, path: '/candidates' },
 ];
 
 export function Layout() {

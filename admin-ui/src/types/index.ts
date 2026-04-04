@@ -65,9 +65,13 @@ export interface Movie {
 export interface TVShow {
   id: string;
   originalTitle: string;
+  originalLocale: Locale;
+  tmdbId: number | null;
   imdbId: string | null;
   tvdbId: number | null;
-  sonarrId: number | null;
+  releaseDate: string | null;
+  useTvdb: boolean;
+  lastEnrichedAt: string | null;
   createdAt: string;
 }
 
@@ -77,6 +81,8 @@ export interface Season {
   seasonNumber: number;
   originalName: string | null;
   airDate: string | null;
+  tmdbSeasonNumber: number | null;
+  tvdbSeasonNumber: number | null;
 }
 
 export interface Episode {
@@ -86,25 +92,15 @@ export interface Episode {
   episodeNumber: number | null;
   absoluteNumber: number | null;
   airDate: string | null;
-  runtime: number | null;
-}
-
-export type CandidateSource = 'RADARR' | 'SONARR' | 'MANUAL';
-export type CandidateStatus = 'PENDING' | 'DOWNLOADING' | 'DOWNLOADED' | 'INDEXED' | 'FAILED';
-export type Resolution = 'SD' | 'HD_720P' | 'FHD_1080P' | 'UHD_4K' | 'UHD_8K';
-export type RipType = 'BLURAY' | 'WEBRIP' | 'WEBDL' | 'HDTV' | 'DVDRIP' | 'CAM' | 'UNKNOWN';
-
-export interface ReleaseCandidate {
-  id: string;
-  movieId: string | null;
-  episodeId: string | null;
-  name: string;
-  infoHash: string | null;
-  sizeBytes: number | null;
-  source: CandidateSource;
-  status: CandidateStatus;
-  tracker: string | null;
-  createdAt: string;
+  runtimeSeconds: number | null;
+  releaseCandidates: MovieReleaseCandidate[];
+  releases: Release[];
+  blackList: { infoHash: string; reason: string }[];
+  whiteList: string[];
+  coolDownList: string[];
+  lastScanAt: string | null;
+  scanning: boolean;
+  scanStartedAt: string | null;
 }
 
 export interface AudioTrack {

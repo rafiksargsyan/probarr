@@ -23,20 +23,29 @@ public class Config {
   @Value("${jackett.api-key:}")
   public String jackettApiKey;
 
-  @Value("${prowlarr.base-url}")
-  public String prowlarrBaseUrl;
-
-  @Value("${prowlarr.api-key:}")
-  public String prowlarrApiKey;
-
-  @Value("${indexer.movie-categories:2000,2040,2045,2060}")
-  public String indexerMovieCategories;
+  @Value("${movie.min-bitrate-kbps}")
+  public int minBitrateKbps;
 
   @Value("${movie.scan-interval-seconds:86400}")
   public int movieScanIntervalSeconds;
 
+  @Value("${movie.scan-delay-seconds}")
+  public int movieScanDelaySeconds;
+
+  @Value("${tvshow.scan-interval-seconds:86400}")
+  public int tvShowScanIntervalSeconds;
+
+  @Value("${tvshow.scan-delay-seconds}")
+  public int tvShowScanDelaySeconds;
+
+  @Value("${tvshow.enrichment-interval-seconds:604800}")
+  public int tvShowEnrichmentIntervalSeconds;
+
   @Value("${tmdb.api-key}")
   public String tmdbApiKey;
+
+  @Value("${tvdb.api-key:}")
+  public String tvdbApiKey;
 
   @Value("${movie.enrichment-interval-seconds:604800}")
   public int movieEnrichmentIntervalSeconds;
@@ -56,6 +65,12 @@ public class Config {
   @Value("${movie.file-downloading-timeout-seconds:86400}") // 24 hours default
   public int fileDownloadingTimeoutSeconds;
 
+  @Value("${movie.file-transferring-timeout-seconds:72000}") // 20 hours default
+  public int fileTransferringTimeoutSeconds;
+
   @Value("${movie.file-progress-observation-seconds:3600}") // 1 hour default
   public int fileProgressObservationSeconds;
+
+  @Value("${movie.file-min-download-speed-bytes:512000}") // 500 KB/s default
+  public long fileMinDownloadSpeedBytes;
 }

@@ -58,6 +58,54 @@ public class TmdbClientImpl implements TmdbClient {
         .toList();
   }
 
+  @Override
+  public TvShowDetails getTvShowDetails(Long tmdbId, String language) {
+    TmdbTvShowResponse resp = restClient.get()
+        .uri(b -> b.path("/tv/{id}").queryParam("api_key", apiKey).queryParam("language", language).build(tmdbId))
+        .retrieve()
+        .body(TmdbTvShowResponse.class);
+    if (resp == null) return null;
+    LocalDate firstAirDate = null;
+    if (resp.firstAirDate() != null && !resp.firstAirDate().isBlank()) {
+      try {
+        firstAirDate = LocalDate.parse(resp.firstAirDate());
+      } catch (Exception e) {
+        log.warn("Could not parse first_air_date '{}' for tmdbId={}", resp.firstAirDate(), tmdbId);
+      }
+    }
+    List<Integer> seasonNumbers = resp.seasons() == null ? List.of() : resp.seasons().stream()
+        .map(TmdbSeasonSummary::seasonNumber)
+        .filter(n -> n != null && n > 0)
+        .toList();
+    return new TvShowDetails(resp.name(), firstAirDate, seasonNumbers);
+  }
+
+  @Override
+  public TvShowExternalIds getTvShowExternalIds(Long tmdbId) {
+    TmdbExternalIdsResponse resp = restClient.get()
+        .uri(b -> b.path("/tv/{id}/external_ids").queryParam("api_key", apiKey).build(tmdbId))
+        .retrieve()
+        .body(TmdbExternalIdsResponse.class);
+    if (resp == null) return null;
+    return new TvShowExternalIds(resp.tvdbId(), resp.imdbId());
+  }
+
+  @Override
+  public List<SeasonEpisodeDetails> getSeasonEpisodes(Long tmdbId, int seasonNumber) {
+    TmdbSeasonResponse resp = restClient.get()
+        .uri(b -> b.path("/tv/{id}/season/{season}").queryParam("api_key", apiKey).build(tmdbId, seasonNumber))
+        .retrieve()
+        .body(TmdbSeasonResponse.class);
+    if (resp == null || resp.episodes() == null) return List.of();
+    return resp.episodes().stream().map(e -> {
+      LocalDate airDate = null;
+      if (e.airDate() != null && !e.airDate().isBlank()) {
+        try { airDate = LocalDate.parse(e.airDate()); } catch (Exception ignored) {}
+      }
+      return new SeasonEpisodeDetails(e.episodeNumber(), airDate, e.runtime());
+    }).toList();
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   record TmdbMovieResponse(
       @JsonProperty("title") String title,
@@ -75,5 +123,35 @@ public class TmdbClientImpl implements TmdbClient {
   record TmdbAltTitle(
       @JsonProperty("title") String title,
       @JsonProperty("type") String type
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbTvShowResponse(
+      @JsonProperty("name") String name,
+      @JsonProperty("first_air_date") String firstAirDate,
+      @JsonProperty("seasons") List<TmdbSeasonSummary> seasons
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbSeasonSummary(
+      @JsonProperty("season_number") Integer seasonNumber
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbExternalIdsResponse(
+      @JsonProperty("tvdb_id") Long tvdbId,
+      @JsonProperty("imdb_id") String imdbId
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbSeasonResponse(
+      @JsonProperty("episodes") List<TmdbEpisode> episodes
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbEpisode(
+      @JsonProperty("episode_number") int episodeNumber,
+      @JsonProperty("air_date") String airDate,
+      @JsonProperty("runtime") Integer runtime
   ) {}
 }

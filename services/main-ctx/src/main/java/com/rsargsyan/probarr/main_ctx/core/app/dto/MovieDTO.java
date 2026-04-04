@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.app.dto;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistEntry;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 
 import java.time.Instant;
@@ -19,6 +20,7 @@ public record MovieDTO(
     String imdbId,
     List<String> alternativeTitles,
     List<ReleaseCandidate> releaseCandidates,
+    List<Release> releases,
     List<BlacklistEntry> blackList,
     List<String> whiteList,
     List<String> coolDownList,
@@ -39,6 +41,7 @@ public record MovieDTO(
         movie.getImdbId(),
         movie.getAlternativeTitles(),
         movie.getReleaseCandidates(),
+        movie.getReleases(),
         movie.getBlackList(),
         movie.getWhiteList(),
         movie.getCoolDownList(),

@@ -1,7 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.valueobject;
 
 public enum Language {
-  UNKNOWN,
   ORIGINAL,
   ENGLISH,
   FRENCH,

@@ -3,11 +3,14 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -23,7 +26,8 @@ import AddIcon from '@mui/icons-material/Add';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createTVShow, listTVShows } from '../api/tvshows';
-import type { TVShow } from '../types';
+import type { Locale, TVShow } from '../types';
+import { LOCALES } from '../types';
 
 export function TVShowsPage() {
   const { user } = useAuth();
@@ -41,9 +45,12 @@ export function TVShowsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
+    originalLocale: 'EN_US' as Locale,
+    tmdbId: '',
     imdbId: '',
     tvdbId: '',
-    sonarrId: '',
+    releaseDate: '',
+    useTvdb: false,
   });
 
   useEffect(() => {
@@ -59,7 +66,15 @@ export function TVShowsPage() {
   }, [user, page, rowsPerPage]);
 
   function resetForm() {
-    setForm({ originalTitle: '', imdbId: '', tvdbId: '', sonarrId: '' });
+    setForm({
+      originalTitle: '',
+      originalLocale: 'EN_US',
+      tmdbId: '',
+      imdbId: '',
+      tvdbId: '',
+      releaseDate: '',
+      useTvdb: false,
+    });
     setFormError(null);
   }
 
@@ -70,9 +85,12 @@ export function TVShowsPage() {
     try {
       await createTVShow(user, {
         originalTitle: form.originalTitle.trim(),
+        originalLocale: form.originalLocale,
+        tmdbId: form.tmdbId ? parseInt(form.tmdbId) : null,
         imdbId: form.imdbId.trim() || null,
         tvdbId: form.tvdbId ? parseInt(form.tvdbId) : null,
-        sonarrId: form.sonarrId ? parseInt(form.sonarrId) : null,
+        releaseDate: form.releaseDate || null,
+        useTvdb: form.useTvdb,
       });
       setDialogOpen(false);
       resetForm();
@@ -111,9 +129,11 @@ export function TVShowsPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Title</TableCell>
-                  <TableCell>IMDB ID</TableCell>
+                  <TableCell>Language</TableCell>
+                  <TableCell>Release Date</TableCell>
+                  <TableCell>TMDB ID</TableCell>
                   <TableCell>TVDB ID</TableCell>
-                  <TableCell>Sonarr ID</TableCell>
+                  <TableCell>Use TVDB</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -125,14 +145,16 @@ export function TVShowsPage() {
                     onClick={() => navigate(`/tvshows/${s.id}`)}
                   >
                     <TableCell>{s.originalTitle}</TableCell>
-                    <TableCell>{s.imdbId ?? '—'}</TableCell>
+                    <TableCell>{s.originalLocale}</TableCell>
+                    <TableCell>{s.releaseDate ?? '—'}</TableCell>
+                    <TableCell>{s.tmdbId ?? '—'}</TableCell>
                     <TableCell>{s.tvdbId ?? '—'}</TableCell>
-                    <TableCell>{s.sonarrId ?? '—'}</TableCell>
+                    <TableCell>{s.useTvdb ? 'Yes' : 'No'}</TableCell>
                   </TableRow>
                 ))}
                 {tvShows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary' }}>
+                    <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary' }}>
                       No TV shows yet
                     </TableCell>
                   </TableRow>
@@ -164,6 +186,29 @@ export function TVShowsPage() {
             autoFocus
           />
           <TextField
+            select
+            label="Original Language"
+            value={form.originalLocale}
+            onChange={(e) => setForm({ ...form, originalLocale: e.target.value as Locale })}
+          >
+            {LOCALES.map((l) => (
+              <MenuItem key={l.value} value={l.value}>{l.label}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Release Date"
+            type="date"
+            value={form.releaseDate}
+            onChange={(e) => setForm({ ...form, releaseDate: e.target.value })}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            label="TMDB ID"
+            type="number"
+            value={form.tmdbId}
+            onChange={(e) => setForm({ ...form, tmdbId: e.target.value })}
+          />
+          <TextField
             label="IMDB ID"
             value={form.imdbId}
             onChange={(e) => setForm({ ...form, imdbId: e.target.value })}
@@ -174,11 +219,14 @@ export function TVShowsPage() {
             value={form.tvdbId}
             onChange={(e) => setForm({ ...form, tvdbId: e.target.value })}
           />
-          <TextField
-            label="Sonarr ID"
-            type="number"
-            value={form.sonarrId}
-            onChange={(e) => setForm({ ...form, sonarrId: e.target.value })}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={form.useTvdb}
+                onChange={(e) => setForm({ ...form, useTvdb: e.target.checked })}
+              />
+            }
+            label="Use TVDB for season/episode data (anime)"
           />
         </DialogContent>
         <DialogActions>

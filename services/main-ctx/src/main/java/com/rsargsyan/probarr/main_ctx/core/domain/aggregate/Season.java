@@ -28,6 +28,12 @@ public class Season extends AggregateRoot {
   @Getter
   private LocalDate airDate;
 
+  @Getter
+  private Integer tmdbSeasonNumber;
+
+  @Getter
+  private Integer tvdbSeasonNumber;
+
   @SuppressWarnings("unused")
   Season() {}
 
@@ -44,6 +50,16 @@ public class Season extends AggregateRoot {
   public void update(String originalName, LocalDate airDate) {
     this.originalName = originalName;
     this.airDate = airDate;
+    touch();
+  }
+
+  public void setTmdbSeasonNumber(Integer tmdbSeasonNumber) {
+    this.tmdbSeasonNumber = tmdbSeasonNumber;
+    touch();
+  }
+
+  public void setTvdbSeasonNumber(Integer tvdbSeasonNumber) {
+    this.tvdbSeasonNumber = tvdbSeasonNumber;
     touch();
   }
 }

@@ -44,7 +44,7 @@ public class TitleLanguageParser {
   private static final Pattern GERMAN_ML = Pattern.compile("(?i)\\bML\\b");
 
   public static List<Language> parse(String title) {
-    if (title == null || title.isBlank()) return List.of(Language.UNKNOWN);
+    if (title == null || title.isBlank()) return List.of();
 
     List<Language> languages = new ArrayList<>();
     String lower = title.toLowerCase();
@@ -117,7 +117,6 @@ public class TitleLanguageParser {
       }
     }
 
-    if (languages.isEmpty()) languages.add(Language.UNKNOWN);
     return List.copyOf(languages);
   }
 

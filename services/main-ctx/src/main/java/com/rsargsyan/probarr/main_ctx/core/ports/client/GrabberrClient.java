@@ -26,7 +26,8 @@ public interface GrabberrClient {
 
   record FileDownloadDTO(String id, Integer fileIndex, FileDownloadStatus status,
                          Float progress, String signedUrl, Long fileSizeBytes,
-                         Instant createdAt, Instant downloadingAt, String metadata) {}
+                         Instant createdAt, Instant downloadingAt, Instant transferringStartedAt,
+                         String metadata) {}
 
   record TorrentFile(int index, String name, long sizeBytes) {}
 

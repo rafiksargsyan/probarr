@@ -8,11 +8,10 @@ public enum Edition {
   REMASTERED,
   IMAX,
   SPECIAL_EDITION,
-  CRITERION,
-  UNKNOWN;
+  CRITERION;
 
   public static Edition fromTitle(String title) {
-    if (title == null) return UNKNOWN;
+    if (title == null) return null;
     String t = title.toLowerCase();
     if (t.contains("imax")) return IMAX;
     if (t.contains("director") && (t.contains("cut") || t.contains("edition"))) return DIRECTORS_CUT;
@@ -22,6 +21,6 @@ public enum Edition {
     if (t.contains("remaster")) return REMASTERED;
     if (t.contains("special edition")) return SPECIAL_EDITION;
     if (t.contains("theatrical")) return THEATRICAL;
-    return UNKNOWN;
+    return null;
   }
 }

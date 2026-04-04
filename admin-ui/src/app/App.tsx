@@ -9,8 +9,7 @@ import { MovieDetailPage } from '../pages/MovieDetailPage';
 import { TVShowsPage } from '../pages/TVShowsPage';
 import { TVShowDetailPage } from '../pages/TVShowDetailPage';
 import { SeasonDetailPage } from '../pages/SeasonDetailPage';
-import { CandidatesPage } from '../pages/CandidatesPage';
-import { CandidateDetailPage } from '../pages/CandidateDetailPage';
+import { EpisodeDetailPage } from '../pages/EpisodeDetailPage';
 import { EmailConfirmation } from '../components/EmailConfirmation/EmailConfirmation';
 
 export default function App() {
@@ -34,8 +33,7 @@ export default function App() {
             <Route path="/tvshows" element={<TVShowsPage />} />
             <Route path="/tvshows/:id" element={<TVShowDetailPage />} />
             <Route path="/tvshows/:id/seasons/:seasonId" element={<SeasonDetailPage />} />
-            <Route path="/candidates" element={<CandidatesPage />} />
-            <Route path="/candidates/:id" element={<CandidateDetailPage />} />
+            <Route path="/tvshows/:id/episodes/:episodeId" element={<EpisodeDetailPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

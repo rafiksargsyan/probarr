@@ -5,7 +5,9 @@ import java.util.List;
 
 public interface IndexerClient {
 
-  List<IndexerRelease> searchMovies(String imdbId, String title);
+  List<IndexerRelease> searchMovies(String title);
+
+  List<IndexerRelease> searchTvShowSeason(String title, int seasonNumber);
 
   record IndexerRelease(
       String title,

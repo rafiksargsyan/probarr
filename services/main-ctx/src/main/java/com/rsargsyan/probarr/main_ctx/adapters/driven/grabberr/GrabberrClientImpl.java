@@ -127,7 +127,7 @@ public class GrabberrClientImpl implements GrabberrClient {
     if (dto == null) return null;
     return new FileDownloadDTO(dto.id(), dto.fileIndex(), FileDownloadStatus.valueOf(dto.status()),
         dto.progress(), dto.signedUrl(), dto.fileSizeBytes(),
-        dto.createdAt(), dto.downloadingAt(), dto.metadata());
+        dto.createdAt(), dto.downloadingAt(), dto.transferringStartedAt(), dto.metadata());
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -156,6 +156,7 @@ public class GrabberrClientImpl implements GrabberrClient {
       @JsonProperty("fileSizeBytes") Long fileSizeBytes,
       @JsonProperty("createdAt") Instant createdAt,
       @JsonProperty("downloadingAt") Instant downloadingAt,
+      @JsonProperty("transferringStartedAt") Instant transferringStartedAt,
       @JsonProperty("metadata") String metadata
   ) {}
 }

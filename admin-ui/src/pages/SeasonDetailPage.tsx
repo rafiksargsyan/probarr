@@ -20,6 +20,12 @@ import { useAuth } from '../hooks/useAuth';
 import { listSeasons, listEpisodes } from '../api/tvshows';
 import type { Season, Episode } from '../types';
 
+function formatRuntime(seconds: number | null): string {
+  if (seconds == null) return '—';
+  const mins = Math.round(seconds / 60);
+  return `${mins}m`;
+}
+
 export function SeasonDetailPage() {
   const { id: tvShowId, seasonId } = useParams<{ id: string; seasonId: string }>();
   const { user } = useAuth();
@@ -76,18 +82,28 @@ export function SeasonDetailPage() {
           {title}
         </Typography>
         <Divider sx={{ mb: 1 }} />
-        <Box sx={{ display: 'flex', py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography sx={{ width: 140, flexShrink: 0, color: 'text.secondary', fontSize: 14 }}>Season #</Typography>
-          <Typography sx={{ fontSize: 14 }}>{season.seasonNumber}</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography sx={{ width: 140, flexShrink: 0, color: 'text.secondary', fontSize: 14 }}>Air Date</Typography>
-          <Typography sx={{ fontSize: 14 }}>{season.airDate ?? '—'}</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', py: 1.5 }}>
-          <Typography sx={{ width: 140, flexShrink: 0, color: 'text.secondary', fontSize: 14 }}>Episodes</Typography>
-          <Typography sx={{ fontSize: 14 }}>{episodes.length}</Typography>
-        </Box>
+        {[
+          { label: 'Season #', value: season.seasonNumber },
+          { label: 'Air Date', value: season.airDate ?? '—' },
+          { label: 'TMDB Season #', value: season.tmdbSeasonNumber ?? '—' },
+          { label: 'TVDB Season #', value: season.tvdbSeasonNumber ?? '—' },
+          { label: 'Episodes', value: episodes.length },
+        ].map(({ label, value }, i, arr) => (
+          <Box
+            key={label}
+            sx={{
+              display: 'flex',
+              py: 1.5,
+              borderBottom: i < arr.length - 1 ? '1px solid' : 'none',
+              borderColor: 'divider',
+            }}
+          >
+            <Typography sx={{ width: 140, flexShrink: 0, color: 'text.secondary', fontSize: 14 }}>
+              {label}
+            </Typography>
+            <Typography sx={{ fontSize: 14 }}>{value}</Typography>
+          </Box>
+        ))}
       </Paper>
 
       <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -102,11 +118,13 @@ export function SeasonDetailPage() {
                 <TableCell>Absolute #</TableCell>
                 <TableCell>Air Date</TableCell>
                 <TableCell>Runtime</TableCell>
+                <TableCell>Candidates</TableCell>
+                <TableCell>Releases</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {episodes.map((e) => (
-                <TableRow key={e.id}>
+                <TableRow key={e.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/tvshows/${tvShowId}/episodes/${e.id}`)}>
                   <TableCell>
                     {e.seasonNumber != null && e.episodeNumber != null
                       ? `S${String(e.seasonNumber).padStart(2, '0')}E${String(e.episodeNumber).padStart(2, '0')}`
@@ -114,12 +132,14 @@ export function SeasonDetailPage() {
                   </TableCell>
                   <TableCell>{e.absoluteNumber ?? '—'}</TableCell>
                   <TableCell>{e.airDate ?? '—'}</TableCell>
-                  <TableCell>{e.runtime != null ? `${e.runtime} min` : '—'}</TableCell>
+                  <TableCell>{formatRuntime(e.runtimeSeconds)}</TableCell>
+                  <TableCell>{e.releaseCandidates.length || '—'}</TableCell>
+                  <TableCell>{e.releases.length || '—'}</TableCell>
                 </TableRow>
               ))}
               {episodes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary' }}>
+                  <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary' }}>
                     No episodes yet
                   </TableCell>
                 </TableRow>

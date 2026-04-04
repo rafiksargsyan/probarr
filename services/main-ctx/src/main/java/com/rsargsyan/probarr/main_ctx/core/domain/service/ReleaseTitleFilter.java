@@ -9,6 +9,12 @@ import java.util.regex.Pattern;
  */
 public class ReleaseTitleFilter {
 
+  // --- AV1 ---
+  private static final Pattern AV1 = Pattern.compile(
+      "\\bAV1\\b",
+      Pattern.CASE_INSENSITIVE
+  );
+
   // --- BR-DISK ---
   private static final Pattern BR_DISK = Pattern.compile(
       "^(?!.*\\b((?<!HD[._ -]|HD)DVD|BDRip|720p|MKV|XviD|WMV|d3g|(BD)?REMUX" +
@@ -29,7 +35,8 @@ public class ReleaseTitleFilter {
 
   // --- Extras ---
   private static final Pattern EXTRAS = Pattern.compile(
-      "(?<=\\b[12]\\d{3}\\b).*\\b(Extras|Bonus|Extended[ ._-]Clip)\\b",
+      "(?<=\\b[12]\\d{3}\\b).*\\b(Extras|Bonus|Extended[ ._-]Clip)\\b" +
+      "|(?<=\\bS\\d+\\b).*\\b(Extras|Bonus|Extended[ ._-]Clip)\\b",
       Pattern.CASE_INSENSITIVE
   );
 
@@ -46,13 +53,13 @@ public class ReleaseTitleFilter {
 
   // --- LQ (Release Group) ---
   private static final Pattern LQ_GROUP = Pattern.compile(
-      "(?i)^(24xHD|41RGB|4K4U|AROMA|aXXo|AZAZE|BARC0DE|BdC|beAst|C4K|CDDHD|CHAOS|CHD|CiNE" +
-      "|CREATiVE24|CrEwSaDe|CTFOH|d3g|DDR|DepraveD|DNL|EPiC|EuReKA|FaNGDiNG0|FGT|FRDS|FZHD" +
-      "|GalaxyRG|GHD|GPTHD|HDS|HDT|HDTime|HDWinG|iNTENSO|iPlanet|iVy|jennaortega(UHD)?" +
+      "(?i)^(24xHD|41RGB|4K4U|AROMA|aXXo|AZAZE|BARC0DE|BdC|beAst|BRiNK|C4K|CDDHD|CHAOS|CHD|CHX|CiNE" +
+      "|CREATiVE24|CrEwSaDe|CTFOH|d3g|DDR|DepraveD|DNL|EPiC|EuReKA|EVO|FaNGDiNG0|FGT|FRDS|FZHD" +
+      "|GalaxyRG|GHD|GHOSTS|GPTHD|HDS|HDT|HDTime|HDWinG|HiQVE|iNTENSO|iPlanet|iVy|jennaortega(UHD)?" +
       "|JFF|KiNGDOM|KIRA|L0SERNIGHT|LAMA|Leffe|Liber8|LiGaS|MarkII|MeGusta|mHD|mSD|MTeam|MT" +
       "|MySiLU|NhaNc3|nHD|nikt0|nSD|OFT|PATOMiEL|PiRaTeS|PRODJi|PSA|PTNK|RARBG|RDN|Rifftrax" +
-      "|RU4HD|SANTi|SasukeducK|Scene|ShieldBearer|STUTTERSHIT|SWTYBLZ|tarunk9c|TBS|TEKNO3D" +
-      "|Tigole|TIKO|VISIONPLUSHDR(-X|1000)?|WAF|WiKi|x0r|YIFY|YTS(\\.(MX|LT|AG))?|Zeus)$"
+      "|RU4HD|SANTi|SasukeducK|Scene|ShieldBearer|STUTTERSHIT|SWTYBLZ|tarunk9c|TBS|TG|TEKNO3D" +
+      "|Tigole|TIKO|VIDEOHOLE|VISIONPLUSHDR(-X|1000)?|WAF|WiKi|worldmkv|x0r|XLF|YIFY|YTS(\\.(MX|LT|AG))?|Zero00|Zeus)$"
   );
 
   // Pahe and NoGroup have partial match patterns — keep them separate
@@ -89,6 +96,7 @@ public class ReleaseTitleFilter {
   public static String reject(String title, Long sizeBytes) {
     if (title == null) return null;
 
+    if (AV1.matcher(title).find())        return "AV1";
     if (BR_DISK.matcher(title).find())   return "BR-DISK";
     if (THREE_D.matcher(title).find())   return "3D";
     if (EXTRAS.matcher(title).find())    return "Extras";

@@ -12,11 +12,12 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 @Slf4j
-@Component("jackettClient")
+@Component
 public class JackettClientImpl implements IndexerClient {
 
   private final RestClient restClient;
@@ -31,33 +32,40 @@ public class JackettClientImpl implements IndexerClient {
   }
 
   @Override
-  public List<IndexerRelease> searchMovies(String imdbId, String title) {
-    UriComponentsBuilder uriBuilder = UriComponentsBuilder
+  public List<IndexerRelease> searchMovies(String title) {
+    UriComponentsBuilder uri = UriComponentsBuilder
         .fromPath("/api/v2.0/indexers/all/results")
         .queryParam("apikey", config.jackettApiKey)
-        .queryParam("Query", title != null ? title : "");
+        .queryParam("Query", title)
+        .queryParam("Category", 2000)
+        .queryParam("Category", 8000);
+    return fetch(uri, "movie title='" + title + "'");
+  }
 
-    for (String cat : config.indexerMovieCategories.split(",")) {
-      uriBuilder.queryParam("Category[]", cat.trim());
-    }
-    if (imdbId != null && !imdbId.isBlank()) {
-      uriBuilder.queryParam("imdbid", imdbId);
-    }
+  @Override
+  public List<IndexerRelease> searchTvShowSeason(String title, int seasonNumber) {
+    UriComponentsBuilder uri = UriComponentsBuilder
+        .fromPath("/api/v2.0/indexers/all/results")
+        .queryParam("apikey", config.jackettApiKey)
+        .queryParam("Query", title)
+        .queryParam("Category", 5000)
+        .queryParam("Category", 8000);
+    return fetch(uri, "tvsearch title='" + title + "'");
+  }
 
+  private List<IndexerRelease> fetch(UriComponentsBuilder uri, String description) {
     try {
       JackettSearchResponse response = restClient.get()
-          .uri(uriBuilder.build().toUriString())
+          .uri(uri.build().toUriString())
           .retrieve()
           .body(JackettSearchResponse.class);
-
       if (response == null || response.results() == null) return List.of();
-
-      return response.results().stream()
+      return Arrays.stream(response.results())
           .map(this::toIndexerRelease)
           .filter(Objects::nonNull)
           .toList();
     } catch (Exception e) {
-      log.error("Jackett search failed for title='{}' imdbId='{}': {}", title, imdbId, e.getMessage());
+      log.error("Jackett {} failed: {}", description, e.getMessage());
       return List.of();
     }
   }
@@ -68,10 +76,13 @@ public class JackettClientImpl implements IndexerClient {
       if (downloadUrl == null || downloadUrl.isBlank()) return null;
       String infoHash = r.infoHash();
       if (infoHash == null || infoHash.isBlank()) {
-        infoHash = TorrentHashResolver.resolve(r.magnetUri(), r.link());
+        infoHash = TorrentHashResolver.extractFromMagnet(r.magnetUri());
+      }
+      if (infoHash == null || infoHash.isBlank()) {
+        infoHash = TorrentHashResolver.extractFromTorrentUrl(downloadUrl);
       }
       Instant publishDate = null;
-      if (r.publishDate() != null) {
+      if (r.publishDate() != null && !r.publishDate().isBlank()) {
         try { publishDate = Instant.parse(r.publishDate()); } catch (Exception ignored) {}
       }
       return new IndexerRelease(r.title(), r.tracker(), r.details(), downloadUrl,
@@ -83,7 +94,7 @@ public class JackettClientImpl implements IndexerClient {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  record JackettSearchResponse(@JsonProperty("Results") List<JackettResult> results) {}
+  record JackettSearchResponse(@JsonProperty("Results") JackettResult[] results) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record JackettResult(

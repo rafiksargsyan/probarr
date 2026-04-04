@@ -50,6 +50,15 @@ public class MovieScannerService {
       } catch (Exception e) {
         log.error("Scan failed for movie id {}: {}", id, e.getMessage());
       }
+      if (config.movieScanDelaySeconds > 0) {
+        try {
+          Thread.sleep(Duration.ofSeconds(config.movieScanDelaySeconds));
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          log.warn("Movie scan interrupted during delay");
+          return;
+        }
+      }
     }
   }
 }

@@ -7,5 +7,5 @@ public record EpisodeCreationDTO(
     Integer episodeNumber,
     Integer absoluteNumber,
     LocalDate airDate,
-    Integer runtime
+    Integer runtimeSeconds
 ) {}

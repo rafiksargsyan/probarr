@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.domain.aggregate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistEntry;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.exception.InvalidTitleException;
 import jakarta.persistence.*;
@@ -66,6 +67,11 @@ public class Movie extends AggregateRoot {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")
   private List<ReleaseCandidate> releaseCandidates = new ArrayList<>();
+
+  @Getter
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
+  private List<Release> releases = new ArrayList<>();
 
   @Getter
   private Instant lastScanAt;
@@ -231,6 +237,33 @@ public class Movie extends AggregateRoot {
     this.lastEnrichedAt = Instant.now();
     if (updated) touch();
     return updated;
+  }
+
+  /**
+   * Attempts to add a release, applying comparison logic to determine if it should
+   * replace, coexist with, or be rejected in favour of existing releases.
+   * Returns true if the release was accepted.
+   */
+  public boolean addRelease(Release newRelease) {
+    List<Release> toReplace = new ArrayList<>();
+    for (Release existing : releases) {
+      Integer cmp = Release.compare(existing, newRelease);
+      if (cmp == null) continue;
+      if (cmp > 0) return false; // existing is strictly better — reject
+      if (cmp == 0) {
+        if (existing.infoHash().equals(newRelease.infoHash())) return false;
+        if (Release.compare2(existing, newRelease) >= 0) return false; // existing wins tiebreaker
+        releases.remove(existing);
+        releases.add(newRelease);
+        touch();
+        return true;
+      }
+      toReplace.add(existing); // new is better — mark for replacement
+    }
+    releases.removeAll(toReplace);
+    releases.add(newRelease);
+    touch();
+    return true;
   }
 
   public void clearReleaseCandidates() {
