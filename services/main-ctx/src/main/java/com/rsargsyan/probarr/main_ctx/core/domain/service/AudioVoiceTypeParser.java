@@ -36,7 +36,7 @@ public class AudioVoiceTypeParser {
    */
   public static AudioVoiceType parse(String streamTitle, AudioAuthor author) {
     if (streamTitle == null) {
-      if (DUB_AUTHORS.contains(author)) return AudioVoiceType.DUB;
+      if (author != null && DUB_AUTHORS.contains(author)) return AudioVoiceType.DUB;
       return null;
     }
     String t = streamTitle.toLowerCase();
@@ -46,7 +46,7 @@ public class AudioVoiceTypeParser {
     if (DVO_REGEX.matcher(t).find() || t.contains("двухголосый")) return AudioVoiceType.DVO;
     if (SO_REGEX.matcher(t).find() || t.contains("одноголосый")) return AudioVoiceType.SO;
     if (t.contains("original") || t.contains("оригинал")) return AudioVoiceType.ORIGINAL;
-    if (DUB_AUTHORS.contains(author)) return AudioVoiceType.DUB;
+    if (author != null && DUB_AUTHORS.contains(author)) return AudioVoiceType.DUB;
     return null;
   }
 }
