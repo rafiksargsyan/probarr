@@ -7,7 +7,10 @@
     "dev": "vite --port 5175",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docker:build": "docker build -t rsargsyan/probarr-admin-ui:latest .",
+    "docker:push": "docker push rsargsyan/probarr-admin-ui:latest",
+    "docker:publish": "pnpm docker:build && pnpm docker:push"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

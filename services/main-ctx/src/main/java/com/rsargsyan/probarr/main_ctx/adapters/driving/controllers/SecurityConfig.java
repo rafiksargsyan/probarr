@@ -20,6 +20,9 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+  @Value("${cors.allowed-origins}")
+  private List<String> allowedOrigins;
+
   @Bean("adminJwtDecoder")
   public JwtDecoder adminJwtDecoder(
       @Value("${admin.firebase.project-id}") String adminProjectId) {
@@ -44,7 +47,7 @@ public class SecurityConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5175", "http://localhost:5178"));
+    config.setAllowedOriginPatterns(allowedOrigins);
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
     config.setAllowCredentials(true);
