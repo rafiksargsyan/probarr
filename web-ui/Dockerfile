@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
-RUN export BUILD_TS=$(date +%s) && npm run build && echo "$BUILD_TS" > /app/dist/.build-ts
+RUN DOCKER_BUILD=1 npm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html

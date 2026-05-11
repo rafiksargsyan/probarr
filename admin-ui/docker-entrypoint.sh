@@ -1,9 +1,7 @@
 #!/bin/sh
 set -e
 
-BUILD_TS=$(cat /usr/share/nginx/html/.build-ts)
-
-cat > /usr/share/nginx/html/env.${BUILD_TS}.js << EOF
+cat > /usr/share/nginx/html/env.js << EOF
 Object.defineProperty(window, '__PROBARR_ADMIN_ENV__', {
   value: {
     VITE_API_BASE_URL: '${VITE_API_BASE_URL}',
