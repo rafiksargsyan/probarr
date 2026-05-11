@@ -98,15 +98,12 @@ export function MovieDetailPage() {
 
   useEffect(() => {
     if (!movie?.scanning) return;
-    const STALE_MS = 10 * 60 * 1000;
-    const isStale = movie.scanStartedAt && Date.now() - new Date(movie.scanStartedAt).getTime() > STALE_MS;
-    if (isStale) return;
     const interval = setInterval(() => {
       if (!user || !id) return;
       getMovie(user, id).then((m) => setMovie(m)).catch(() => {});
     }, 3000);
     return () => clearInterval(interval);
-  }, [movie?.scanning, movie?.scanStartedAt, user, id]);
+  }, [movie?.scanning, user, id]);
 
   function openEdit() {
     if (!movie) return;
@@ -164,9 +161,7 @@ export function MovieDetailPage() {
     }
   }
 
-  const STALE_MS = 10 * 60 * 1000;
-  const isScanningActive = !!movie?.scanning &&
-    !(movie.scanStartedAt && Date.now() - new Date(movie.scanStartedAt).getTime() > STALE_MS);
+  const isScanningActive = !!movie?.scanning;
 
   if (loading) {
     return (

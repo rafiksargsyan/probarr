@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -64,8 +65,8 @@ public class JackettClientImpl implements IndexerClient {
           .map(this::toIndexerRelease)
           .filter(Objects::nonNull)
           .toList();
-    } catch (Exception e) {
-      log.error("Jackett {} failed: {}", description, e.getMessage());
+    } catch (Throwable t) {
+      log.error("Jackett {} failed: {}", description, t.getMessage(), t);
       return List.of();
     }
   }
@@ -79,7 +80,8 @@ public class JackettClientImpl implements IndexerClient {
         infoHash = TorrentHashResolver.extractFromMagnet(r.magnetUri());
       }
       if (infoHash == null || infoHash.isBlank()) {
-        infoHash = TorrentHashResolver.extractFromTorrentUrl(downloadUrl);
+        infoHash = TorrentHashResolver.extractFromTorrentUrl(downloadUrl,
+            Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds));
       }
       Instant publishDate = null;
       if (r.publishDate() != null && !r.publishDate().isBlank()) {

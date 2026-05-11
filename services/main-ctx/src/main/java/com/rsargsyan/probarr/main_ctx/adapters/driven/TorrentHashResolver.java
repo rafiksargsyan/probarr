@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HexFormat;
 
@@ -35,11 +36,12 @@ public class TorrentHashResolver {
     return null;
   }
 
-  public static String extractFromTorrentUrl(String downloadUrl) {
+  public static String extractFromTorrentUrl(String downloadUrl, Duration timeout) {
     if (downloadUrl == null || downloadUrl.isBlank()) return null;
     try {
       HttpRequest request = HttpRequest.newBuilder()
           .uri(URI.create(downloadUrl))
+          .timeout(timeout)
           .GET()
           .build();
       HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());

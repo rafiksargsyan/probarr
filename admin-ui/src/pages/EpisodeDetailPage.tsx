@@ -109,15 +109,12 @@ export function EpisodeDetailPage() {
 
   useEffect(() => {
     if (!episode?.scanning) return;
-    const STALE_MS = 10 * 60 * 1000;
-    const isStale = episode.scanStartedAt && Date.now() - new Date(episode.scanStartedAt).getTime() > STALE_MS;
-    if (isStale) return;
     const interval = setInterval(() => {
       if (!user || !tvShowId || !episodeId) return;
       getEpisode(user, tvShowId, episodeId).then((e) => setEpisode(e)).catch(() => {});
     }, 3000);
     return () => clearInterval(interval);
-  }, [episode?.scanning, episode?.scanStartedAt, user, tvShowId, episodeId]);
+  }, [episode?.scanning, user, tvShowId, episodeId]);
 
   function openEdit() {
     if (!episode) return;
@@ -173,9 +170,7 @@ export function EpisodeDetailPage() {
     }
   }
 
-  const STALE_MS = 10 * 60 * 1000;
-  const isScanningActive = !!episode?.scanning &&
-    !(episode.scanStartedAt && Date.now() - new Date(episode.scanStartedAt).getTime() > STALE_MS);
+  const isScanningActive = !!episode?.scanning;
 
   if (loading) {
     return (

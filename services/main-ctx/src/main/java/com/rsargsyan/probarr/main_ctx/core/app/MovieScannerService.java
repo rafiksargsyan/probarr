@@ -16,7 +16,6 @@ import java.util.List;
 @Service
 public class MovieScannerService {
 
-  private static final Duration SCAN_STALE_TIMEOUT = Duration.ofMinutes(10);
 
   private final MovieRepository movieRepository;
   private final MovieScanTransactionService movieScanTransactionService;
@@ -38,7 +37,7 @@ public class MovieScannerService {
     for (Long id : ids) {
       Movie movie = movieRepository.findById(id).orElse(null);
       if (movie == null) continue;
-      if (movie.isScanningStale(SCAN_STALE_TIMEOUT)) {
+      if (movie.isScanningStale(Duration.ofSeconds(config.movieScanStaleTimeoutSeconds))) {
         log.warn("Movie {} has stale scanning state, resetting", id);
         movieScanTransactionService.markScanDone(id);
       } else if (movie.isScanning()) {

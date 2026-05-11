@@ -23,11 +23,17 @@ public class Config {
   @Value("${jackett.api-key:}")
   public String jackettApiKey;
 
+  @Value("${jackett.torrent-download-timeout-seconds:10}")
+  public int jackettTorrentDownloadTimeoutSeconds;
+
   @Value("${movie.min-bitrate-kbps}")
   public int minBitrateKbps;
 
   @Value("${movie.scan-interval-seconds:86400}")
   public int movieScanIntervalSeconds;
+
+  @Value("${movie.scan-stale-timeout-seconds:3600}")
+  public int movieScanStaleTimeoutSeconds;
 
   @Value("${movie.scan-delay-seconds}")
   public int movieScanDelaySeconds;
