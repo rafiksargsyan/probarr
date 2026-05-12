@@ -311,7 +311,7 @@ public class MovieProcessorTransactionService {
       int exitCode = process.waitFor();
 
       if (exitCode != 0) {
-        log.warn("ffprobe failed (exit={}) for rc={}", exitCode, rc.infoHash());
+        log.warn("ffprobe failed (exit={}) for rc={}: {}", exitCode, rc.infoHash(), output.strip());
         return false;
       }
 
