@@ -167,7 +167,7 @@ public class EpisodeProcessorTransactionService {
                 episode.addToBlackList(rc.infoHash(), BlacklistReason.FILE_DOWNLOAD_FAILED);
                 unclaimFileQuietly(torrent.id(), mediaFile.index(), rc.infoHash());
               } else {
-                boolean timedOut = isFileDownloadTimedOut(fileStatus);
+                boolean timedOut = isFileDownloadTimedOut(fileStatus, mediaFile.sizeBytes());
                 if (timedOut) {
                   log.warn("File download timed out for rc={} status={}, unclaiming and moving to cool-down",
                       rc.infoHash(), fileStatus.status());
@@ -274,7 +274,7 @@ public class EpisodeProcessorTransactionService {
     return null;
   }
 
-  private boolean isFileDownloadTimedOut(GrabberrClient.FileDownloadDTO fileStatus) {
+  private boolean isFileDownloadTimedOut(GrabberrClient.FileDownloadDTO fileStatus, long fileSizeBytes) {
     if (fileStatus.status() == GrabberrClient.FileDownloadStatus.SUBMITTED) {
       return fileStatus.createdAt() != null
           && Instant.now().isAfter(fileStatus.createdAt().plusSeconds(config.fileSubmittedTimeoutSeconds));
@@ -299,9 +299,8 @@ public class EpisodeProcessorTransactionService {
     if (elapsedSeconds > config.fileDownloadingTimeoutSeconds) return true;
 
     if (elapsedSeconds >= config.fileProgressObservationSeconds
-        && fileStatus.progress() != null && fileStatus.progress() > 0
-        && fileStatus.fileSizeBytes() != null) {
-      long downloadedBytes = (long) (fileStatus.progress() * fileStatus.fileSizeBytes());
+        && fileStatus.progress() != null && fileStatus.progress() > 0) {
+      long downloadedBytes = (long) (fileStatus.progress() * fileSizeBytes);
       long speedBytesPerSecond = downloadedBytes / elapsedSeconds;
       if (speedBytesPerSecond < config.fileMinDownloadSpeedBytes) {
         log.warn("File download too slow: {} B/s (min {} B/s)", speedBytesPerSecond, config.fileMinDownloadSpeedBytes);
