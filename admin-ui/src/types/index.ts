@@ -53,6 +53,7 @@ export interface Movie {
   tmdbId: number | null;
   alternativeTitles: string[];
   releaseCandidates: MovieReleaseCandidate[];
+  releases: Release[];
   blackList: { infoHash: string; reason: string }[];
   whiteList: string[];
   coolDownList: string[];
@@ -122,8 +123,7 @@ export type Resolution = 'SD' | 'HD_720P' | 'FHD_1080P' | 'UHD_4K' | 'UHD_8K';
 export type RipType = 'CAM' | 'TELESYNC' | 'DVD' | 'HDTV' | 'WEB' | 'BR';
 
 export interface Release {
-  id: string;
-  candidateId: string;
+  infoHash: string;
   filePath: string;
   fileSizeBytes: number;
   videoCodec: string;

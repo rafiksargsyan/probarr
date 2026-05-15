@@ -78,6 +78,7 @@ export function MovieDetailPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<object | null>(null);
+  const [selectedRelease, setSelectedRelease] = useState<object | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
     originalLocale: 'EN_US' as Locale,
@@ -319,6 +320,49 @@ export function MovieDetailPage() {
         </Paper>
       </Box>
 
+      <Paper sx={{ mt: 3, p: 3 }}>
+        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+          Releases ({movie.releases?.length ?? 0})
+        </Typography>
+        <Divider sx={{ mb: 1 }} />
+        {!movie.releases?.length ? (
+          <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>No releases yet.</Typography>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Info Hash</TableCell>
+                <TableCell>File Path</TableCell>
+                <TableCell>Size</TableCell>
+                <TableCell>Codec</TableCell>
+                <TableCell>Resolution</TableCell>
+                <TableCell>Rip</TableCell>
+                <TableCell>Runtime</TableCell>
+                <TableCell>Audio</TableCell>
+                <TableCell>Subtitles</TableCell>
+                <TableCell>Added At</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {movie.releases.map((r) => (
+                <TableRow key={r.infoHash} hover sx={{ cursor: 'pointer' }} onClick={() => setSelectedRelease(r)}>
+                  <TableCell><Typography sx={{ fontFamily: 'monospace', fontSize: 12 }}>{r.infoHash.slice(0, 8)}…</Typography></TableCell>
+                  <TableCell sx={{ fontSize: 12, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.filePath ?? '—'}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{formatBytes(r.fileSizeBytes)}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.videoCodec ?? '—'}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.resolution}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.ripType}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.runtimeSeconds != null ? `${Math.floor(r.runtimeSeconds / 60)}m` : '—'}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.audioTracks?.length ?? 0}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{r.subtitleTracks?.length ?? 0}</TableCell>
+                  <TableCell sx={{ fontSize: 12 }}>{formatDate(r.createdAt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
+
       <Dialog open={!!selectedCandidate} onClose={() => setSelectedCandidate(null)} maxWidth="md" fullWidth>
         <DialogTitle>Release Candidate</DialogTitle>
         <DialogContent>
@@ -328,6 +372,18 @@ export function MovieDetailPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedCandidate(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!selectedRelease} onClose={() => setSelectedRelease(null)} maxWidth="md" fullWidth>
+        <DialogTitle>Release</DialogTitle>
+        <DialogContent>
+          <Box component="pre" sx={{ fontSize: 12, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', m: 0 }}>
+            {JSON.stringify(selectedRelease, null, 2)}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedRelease(null)}>Close</Button>
         </DialogActions>
       </Dialog>
 
