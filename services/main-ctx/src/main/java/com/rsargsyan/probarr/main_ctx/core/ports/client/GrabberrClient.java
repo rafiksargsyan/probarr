@@ -22,6 +22,10 @@ public interface GrabberrClient {
 
   FileDownloadDTO cacheFile(String torrentDownloadId, int fileIndex);
 
+  TorrentSourceDTO getTorrentSourceByHash(String infoHash);
+
+  record TorrentSourceDTO(String value) {}
+
   record TorrentDownloadDTO(String id, String infoHash, TorrentStatus status, List<TorrentFile> files, Instant createdAt) {}
 
   record FileDownloadDTO(String id, Integer fileIndex, FileDownloadStatus status,

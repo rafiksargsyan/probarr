@@ -79,4 +79,19 @@ public class Config {
 
   @Value("${movie.file-min-download-speed-bytes:512000}") // 500 KB/s default
   public long fileMinDownloadSpeedBytes;
+
+  @Value("${probarr.s3.access-key-id}")
+  public String s3AccessKeyId;
+
+  @Value("${probarr.s3.secret-access-key}")
+  public String s3SecretAccessKey;
+
+  @Value("${probarr.s3.region}")
+  public String s3Region;
+
+  @Value("${probarr.s3.endpoint}")
+  public String s3Endpoint;
+
+  @Value("${probarr.s3.bucket}")
+  public String s3Bucket;
 }

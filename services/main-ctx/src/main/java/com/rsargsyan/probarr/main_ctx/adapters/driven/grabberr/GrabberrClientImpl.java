@@ -116,6 +116,15 @@ public class GrabberrClientImpl implements GrabberrClient {
     return toPort(dto);
   }
 
+  @Override
+  public GrabberrClient.TorrentSourceDTO getTorrentSourceByHash(String infoHash) {
+    GrabberrTorrentSourceDTO dto = restClient.get()
+        .uri("/torrent-download/by-hash/{hash}/torrent-source", infoHash)
+        .retrieve()
+        .body(GrabberrTorrentSourceDTO.class);
+    return new GrabberrClient.TorrentSourceDTO(dto != null ? dto.value() : null);
+  }
+
   private TorrentDownloadDTO toPort(GrabberrTorrentDownloadDTO dto) {
     if (dto == null) return null;
     List<TorrentFile> files = dto.files() == null ? List.of() :
@@ -145,6 +154,9 @@ public class GrabberrClientImpl implements GrabberrClient {
       @JsonProperty("name") String name,
       @JsonProperty("sizeBytes") long sizeBytes
   ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record GrabberrTorrentSourceDTO(@JsonProperty("value") String value) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record GrabberrFileDownloadDTO(

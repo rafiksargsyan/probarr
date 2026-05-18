@@ -59,6 +59,28 @@ public class TmdbClientImpl implements TmdbClient {
   }
 
   @Override
+  public List<Integer> getReleaseDateYears(Long tmdbId) {
+    TmdbReleaseDatesResponse resp = restClient.get()
+        .uri(b -> b.path("/movie/{id}/release_dates").queryParam("api_key", apiKey).build(tmdbId))
+        .retrieve()
+        .body(TmdbReleaseDatesResponse.class);
+    if (resp == null || resp.results() == null) return List.of();
+    return resp.results().stream()
+        .filter(r -> r.releaseDates() != null)
+        .flatMap(r -> r.releaseDates().stream())
+        .map(TmdbReleaseDate::releaseDate)
+        .filter(d -> d != null && d.length() >= 4)
+        .map(d -> {
+          try { return Integer.parseInt(d.substring(0, 4)); }
+          catch (NumberFormatException e) { return null; }
+        })
+        .filter(java.util.Objects::nonNull)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  @Override
   public TvShowDetails getTvShowDetails(Long tmdbId, String language) {
     TmdbTvShowResponse resp = restClient.get()
         .uri(b -> b.path("/tv/{id}").queryParam("api_key", apiKey).queryParam("language", language).build(tmdbId))
@@ -123,6 +145,21 @@ public class TmdbClientImpl implements TmdbClient {
   record TmdbAltTitle(
       @JsonProperty("title") String title,
       @JsonProperty("type") String type
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbReleaseDatesResponse(
+      @JsonProperty("results") List<TmdbReleaseDateCountry> results
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbReleaseDateCountry(
+      @JsonProperty("release_dates") List<TmdbReleaseDate> releaseDates
+  ) {}
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  record TmdbReleaseDate(
+      @JsonProperty("release_date") String releaseDate
   ) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)

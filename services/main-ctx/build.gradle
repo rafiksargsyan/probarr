@@ -33,6 +33,8 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
     implementation 'com.github.kagkarlsson:db-scheduler-spring-boot-starter:15.0.0'
     implementation 'commons-codec:commons-codec:1.17.1'
+    implementation platform('software.amazon.awssdk:bom:2.29.51')
+    implementation 'software.amazon.awssdk:s3'
 }
 
 tasks.named('test') {

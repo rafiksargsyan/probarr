@@ -9,6 +9,8 @@ public interface TmdbClient {
 
   List<AlternativeTitle> getAlternativeTitles(Long tmdbId);
 
+  List<Integer> getReleaseDateYears(Long tmdbId);
+
   TvShowDetails getTvShowDetails(Long tmdbId, String language);
 
   TvShowExternalIds getTvShowExternalIds(Long tmdbId);

@@ -36,6 +36,7 @@ public class MovieEnrichmentTransactionService {
     TmdbClient.MovieDetails enUs = tmdbClient.getMovieDetails(tmdbId, "en-US");
     TmdbClient.MovieDetails ru = tmdbClient.getMovieDetails(tmdbId, "ru");
     List<TmdbClient.AlternativeTitle> altTitles = tmdbClient.getAlternativeTitles(tmdbId);
+    List<Integer> alternativeReleaseYears = tmdbClient.getReleaseDateYears(tmdbId);
 
     String titleEnUs = enUs != null ? enUs.title() : null;
     String titleRu = ru != null ? ru.title() : null;
@@ -50,7 +51,8 @@ public class MovieEnrichmentTransactionService {
         romanizedTitles,
         enUs != null ? enUs.releaseDate() : null,
         enUs != null ? enUs.runtimeMinutes() : null,
-        enUs != null ? enUs.imdbId() : null
+        enUs != null ? enUs.imdbId() : null,
+        alternativeReleaseYears
     );
 
     movieRepository.save(movie);

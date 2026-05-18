@@ -15,7 +15,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 public class Movie extends AggregateRoot {
@@ -47,6 +49,11 @@ public class Movie extends AggregateRoot {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(columnDefinition = "jsonb")
   private List<String> alternativeTitles = new ArrayList<>();
+
+  @Getter
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(columnDefinition = "jsonb")
+  private List<Integer> alternativeReleaseYears = new ArrayList<>();
 
   @Getter
   @JdbcTypeCode(SqlTypes.JSON)
@@ -207,8 +214,15 @@ public class Movie extends AggregateRoot {
     touch();
   }
 
+  public Set<Integer> getAllReleaseYears() {
+    Set<Integer> years = alternativeReleaseYears != null ? new HashSet<>(alternativeReleaseYears) : new HashSet<>();
+    if (releaseDate != null) years.add(releaseDate.getYear());
+    return years;
+  }
+
   public boolean enrichFromTmdb(String titleEnUs, String titleRu, List<String> romanizedTitles,
-                                LocalDate releaseDate, Integer runtimeMinutes, String imdbId) {
+                                LocalDate releaseDate, Integer runtimeMinutes, String imdbId,
+                                List<Integer> alternativeReleaseYears) {
     boolean updated = false;
 
     if (releaseDate != null && !releaseDate.equals(this.releaseDate)) {
@@ -224,12 +238,19 @@ public class Movie extends AggregateRoot {
       updated = true;
     }
     if (this.alternativeTitles.isEmpty()) {
-      List<String> titles = new java.util.ArrayList<>();
+      List<String> titles = new ArrayList<>();
       if (titleEnUs != null) titles.add(titleEnUs);
       if (titleRu != null) titles.add(titleRu);
       titles.addAll(romanizedTitles);
       if (!titles.isEmpty()) {
         this.alternativeTitles = titles;
+        updated = true;
+      }
+    }
+    if (alternativeReleaseYears != null && !alternativeReleaseYears.isEmpty()) {
+      List<Integer> distinct = alternativeReleaseYears.stream().distinct().sorted().toList();
+      if (!distinct.equals(this.alternativeReleaseYears)) {
+        this.alternativeReleaseYears = new ArrayList<>(distinct);
         updated = true;
       }
     }

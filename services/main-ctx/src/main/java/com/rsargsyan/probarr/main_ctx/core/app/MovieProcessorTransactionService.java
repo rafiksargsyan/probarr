@@ -17,6 +17,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.GrabberrClient;
+import com.rsargsyan.probarr.main_ctx.core.ports.client.ObjectStorageClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ public class MovieProcessorTransactionService {
 
   private final MovieRepository movieRepository;
   private final GrabberrClient grabberrClient;
+  private final ObjectStorageClient objectStorageClient;
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final Config config;
@@ -46,10 +48,12 @@ public class MovieProcessorTransactionService {
   @Autowired
   public MovieProcessorTransactionService(MovieRepository movieRepository,
                                           GrabberrClient grabberrClient,
+                                          ObjectStorageClient objectStorageClient,
                                           ObjectMapper objectMapper,
                                           Config config) {
     this.movieRepository = movieRepository;
     this.grabberrClient = grabberrClient;
+    this.objectStorageClient = objectStorageClient;
     this.objectMapper = objectMapper;
     this.config = config;
     this.httpClient = HttpClient.newBuilder()
@@ -279,10 +283,10 @@ public class MovieProcessorTransactionService {
     String name = fileName.toLowerCase();
 
     long yearBonus = 0;
-    if (movie.getReleaseDate() != null) {
-      String year = String.valueOf(movie.getReleaseDate().getYear());
+    for (Integer year : movie.getAllReleaseYears()) {
+      String yearStr = String.valueOf(year);
       int idx = 0;
-      while ((idx = name.indexOf(year, idx)) >= 0) { yearBonus++; idx++; }
+      while ((idx = name.indexOf(yearStr, idx)) >= 0) { yearBonus++; idx++; }
     }
 
     List<String> titles = new ArrayList<>(movie.getAlternativeTitles());
@@ -352,9 +356,11 @@ public class MovieProcessorTransactionService {
       List<AudioTrack> audioTracks = extractAudioTracks(streams);
       List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams);
 
+      String torrentSource = resolveTorrentSource(rc.infoHash());
+
       Release release = new Release(rc.infoHash(), mediaFile.name(),
           fileStatus.fileSizeBytes(), videoCodec, rc.resolution(), rc.ripType(), rc.edition(),
-          runtimeSeconds, audioTracks, subtitleTracks, Instant.now());
+          runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index());
 
       boolean accepted = movie.addRelease(release);
       log.info("Release for '{}' rc={}: {}", movie.getOriginalTitle(), rc.infoHash(),
@@ -364,6 +370,23 @@ public class MovieProcessorTransactionService {
     } catch (Exception e) {
       log.error("processMediaFile failed for rc={}: {}", rc.infoHash(), e.getMessage());
       return false;
+    }
+  }
+
+  private String resolveTorrentSource(String infoHash) {
+    try {
+      GrabberrClient.TorrentSourceDTO sourceDto = grabberrClient.getTorrentSourceByHash(infoHash);
+      String value = sourceDto.value();
+      if (value == null) return null;
+      if (value.startsWith("magnet:")) return value;
+      // It's a signed URL to grabberr's S3 — download and re-upload to probarr's S3
+      String s3Key = "torrents/" + infoHash + ".torrent";
+      byte[] torrentBytes = fetchTorrentBytes(value);
+      objectStorageClient.upload(s3Key, torrentBytes, "application/x-bittorrent");
+      return s3Key;
+    } catch (Exception e) {
+      log.warn("Could not resolve torrent source for infoHash={}: {}", infoHash, e.getMessage());
+      return null;
     }
   }
 

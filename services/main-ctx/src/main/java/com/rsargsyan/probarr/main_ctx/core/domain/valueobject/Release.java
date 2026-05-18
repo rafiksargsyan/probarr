@@ -20,7 +20,9 @@ public record Release(
     Integer runtimeSeconds,
     List<AudioTrack> audioTracks,
     List<SubtitleTrack> subtitleTracks,
-    Instant addedAt
+    Instant addedAt,
+    String torrentSource,
+    Integer fileIndex
 ) {
 
   // Priority lists per BCP-47 language tag (lower index = higher priority)

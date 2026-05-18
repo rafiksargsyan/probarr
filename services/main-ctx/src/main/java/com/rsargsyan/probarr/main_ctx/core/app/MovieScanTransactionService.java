@@ -103,12 +103,12 @@ public class MovieScanTransactionService {
           continue;
         }
         if (movie.getReleaseDate() != null) {
-          int releaseYear = movie.getReleaseDate().getYear();
+          java.util.Set<Integer> allYears = movie.getAllReleaseYears();
           Matcher m = YEAR_PATTERN.matcher(r.title());
           List<Integer> yearsInTitle = new ArrayList<>();
           while (m.find()) yearsInTitle.add(Integer.parseInt(m.group(1)));
-          if (!yearsInTitle.isEmpty() && yearsInTitle.stream().noneMatch(y -> y == releaseYear)) {
-            log.debug("Skipping '{}': title years {} don't match release year {}", r.title(), yearsInTitle, releaseYear);
+          if (!yearsInTitle.isEmpty() && yearsInTitle.stream().noneMatch(allYears::contains)) {
+            log.debug("Skipping '{}': title years {} don't match release years {}", r.title(), yearsInTitle, allYears);
             continue;
           }
         }

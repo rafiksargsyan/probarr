@@ -6,6 +6,7 @@ import com.rsargsyan.probarr.main_ctx.core.app.dto.MovieDTO;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.exception.ResourceNotFoundException;
+import com.rsargsyan.probarr.main_ctx.core.ports.client.ObjectStorageClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.MovieRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -24,14 +25,17 @@ public class MovieService {
   private final MovieRepository movieRepository;
   private final MovieScanTransactionService movieScanTransactionService;
   private final ApplicationEventPublisher eventPublisher;
+  private final ObjectStorageClient objectStorageClient;
 
   @Autowired
   public MovieService(MovieRepository movieRepository,
                       MovieScanTransactionService movieScanTransactionService,
-                      ApplicationEventPublisher eventPublisher) {
+                      ApplicationEventPublisher eventPublisher,
+                      ObjectStorageClient objectStorageClient) {
     this.movieRepository = movieRepository;
     this.movieScanTransactionService = movieScanTransactionService;
     this.eventPublisher = eventPublisher;
+    this.objectStorageClient = objectStorageClient;
   }
 
   public Page<MovieDTO> listMovies(Pageable pageable) {
@@ -41,6 +45,10 @@ public class MovieService {
   public MovieDTO getMovie(String idStr) {
     Long id = Util.validateTSID(idStr);
     return MovieDTO.from(movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new));
+  }
+
+  public MovieDTO getMovieByTmdbId(Long tmdbId) {
+    return MovieDTO.from(movieRepository.findByTmdbId(tmdbId).orElseThrow(ResourceNotFoundException::new));
   }
 
   @Transactional
@@ -155,5 +163,10 @@ public class MovieService {
     movie.setForceScan(forceScan);
     movieRepository.save(movie);
     return MovieDTO.from(movie);
+  }
+
+  public byte[] getTorrentBytes(String infoHash) {
+    String key = "torrents/" + infoHash + ".torrent";
+    return objectStorageClient.download(key);
   }
 }
