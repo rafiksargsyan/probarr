@@ -1,6 +1,7 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
 import com.rsargsyan.probarr.main_ctx.core.Util;
+import com.rsargsyan.probarr.main_ctx.core.app.dto.ClientMovieDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.MovieCreationDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.MovieDTO;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
@@ -40,6 +41,19 @@ public class MovieService {
 
   public Page<MovieDTO> listMovies(Pageable pageable) {
     return movieRepository.findAll(pageable).map(MovieDTO::from);
+  }
+
+  public Page<ClientMovieDTO> listClientMovies(Pageable pageable) {
+    return movieRepository.findAll(pageable).map(ClientMovieDTO::from);
+  }
+
+  public ClientMovieDTO getClientMovie(String idStr) {
+    Long id = Util.validateTSID(idStr);
+    return ClientMovieDTO.from(movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new));
+  }
+
+  public ClientMovieDTO getClientMovieByTmdbId(Long tmdbId) {
+    return ClientMovieDTO.from(movieRepository.findByTmdbId(tmdbId).orElseThrow(ResourceNotFoundException::new));
   }
 
   public MovieDTO getMovie(String idStr) {

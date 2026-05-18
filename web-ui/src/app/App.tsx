@@ -5,6 +5,9 @@ import { EmailConfirmation } from '../components/EmailConfirmation/EmailConfirma
 import { Layout } from '../components/Layout/Layout';
 import { Login } from '../pages/Login';
 import { Dashboard } from '../pages/Dashboard';
+import { Movies } from '../pages/Movies';
+import { MovieDetail } from '../pages/MovieDetail';
+import { ApiKeys } from '../pages/ApiKeys';
 
 export default function App() {
   return (
@@ -22,6 +25,9 @@ export default function App() {
           >
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/movies" element={<Movies />} />
+            <Route path="/movies/:id" element={<MovieDetail />} />
+            <Route path="/api-keys" element={<ApiKeys />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

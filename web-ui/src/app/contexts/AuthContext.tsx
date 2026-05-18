@@ -16,7 +16,7 @@ import {
   getEmailForSignIn,
   clearEmailForSignIn,
 } from '../../utils/emailStorage';
-import { signUpExternal } from '../../api/users';
+import { signUp } from '../../api/users';
 import type { AuthContextValue } from '../../types/auth.types';
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const dto = await signUpExternal(firebaseUser);
+          const dto = await signUp(firebaseUser);
           setUserId(dto.id);
           setAccountId(dto.accountId);
         } catch {

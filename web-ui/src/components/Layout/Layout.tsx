@@ -18,6 +18,8 @@ import {
   useTheme,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import MovieIcon from '@mui/icons-material/Movie';
+import KeyIcon from '@mui/icons-material/Key';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,6 +28,8 @@ const DRAWER_WIDTH = 240;
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { label: 'Movies', icon: <MovieIcon />, path: '/movies' },
+  { label: 'API Keys', icon: <KeyIcon />, path: '/api-keys' },
 ];
 
 export function Layout() {
@@ -39,6 +43,11 @@ export function Layout() {
   const avatarLabel =
     user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? 'U';
 
+  const isActive = (path: string) =>
+    path === '/dashboard'
+      ? location.pathname === path
+      : location.pathname.startsWith(path);
+
   const drawerContent = (
     <Box>
       <Toolbar>
@@ -51,7 +60,7 @@ export function Layout() {
         {NAV_ITEMS.map(({ label, icon, path }) => (
           <ListItem key={label} disablePadding>
             <ListItemButton
-              selected={location.pathname === path}
+              selected={isActive(path)}
               onClick={() => {
                 navigate(path);
                 setMobileOpen(false);
