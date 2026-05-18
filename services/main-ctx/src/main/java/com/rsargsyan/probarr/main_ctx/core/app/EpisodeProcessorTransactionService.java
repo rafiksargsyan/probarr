@@ -302,9 +302,9 @@ public class EpisodeProcessorTransactionService {
 
     if (elapsedSeconds > config.fileDownloadingTimeoutSeconds) return true;
 
-    if (elapsedSeconds >= config.fileProgressObservationSeconds
-        && fileStatus.progress() != null && fileStatus.progress() > 0) {
-      long downloadedBytes = (long) (fileStatus.progress() * fileSizeBytes);
+    if (elapsedSeconds >= config.fileProgressObservationSeconds) {
+      float progress = fileStatus.progress() != null ? fileStatus.progress() : 0f;
+      long downloadedBytes = (long) (progress * fileSizeBytes);
       long speedBytesPerSecond = downloadedBytes / elapsedSeconds;
       if (speedBytesPerSecond < config.fileMinDownloadSpeedBytes) {
         log.warn("File download too slow: {} B/s (min {} B/s)", speedBytesPerSecond, config.fileMinDownloadSpeedBytes);
