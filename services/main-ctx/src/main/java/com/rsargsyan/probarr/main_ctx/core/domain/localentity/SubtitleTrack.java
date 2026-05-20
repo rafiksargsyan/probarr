@@ -1,13 +1,14 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.localentity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SubtitleTrack(
-    String language,
-    String format,     // e.g. "srt", "ass", "pgs"
-    boolean isDefault,
-    boolean isForced,
+    int streamIndex,
+    Locale language,
     SubsType subsType,
     SubsAuthor author
 ) {}

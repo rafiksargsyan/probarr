@@ -5,8 +5,7 @@ public enum SubsType {
   FULL,
   SDH;
 
-  public static SubsType fromTitle(String title, boolean isForced) {
-    if (isForced) return FORCED;
+  public static SubsType fromTitle(String title) {
     if (title == null) return null;
     String t = title.toLowerCase();
     if (t.contains("forced") || t.contains("форсирован") || t.contains("forzados")) return FORCED;

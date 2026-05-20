@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.valueobject;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
 
@@ -9,12 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record Release(
     String infoHash,
     String filePath,
     Long fileSizeBytes,
-    String videoCodec,
     Resolution resolution,
+    Integer width,
+    Integer height,
     RipType ripType,
     Edition edition,
     Integer runtimeSeconds,
@@ -25,29 +28,35 @@ public record Release(
     Integer fileIndex
 ) {
 
-  // Priority lists per BCP-47 language tag (lower index = higher priority)
-  private static final Map<String, List<AudioAuthor>> AUDIO_AUTHOR_PRIORITY = Map.of(
-      "ru", List.of(
-          AudioAuthor.HDREZKA,
-          AudioAuthor.HDREZKA_18PLUS,
-          AudioAuthor.LOSTFILM,
-          AudioAuthor.TVSHOWS,
-          AudioAuthor.VIRUSEPROJECT,
-          AudioAuthor.VIRUSEPROJECT_18PLUS,
-          AudioAuthor.MOVIE_DALEN,
-          AudioAuthor.POSTMODERN,
-          AudioAuthor.IVI,
-          AudioAuthor.KINOMANIA,
-          AudioAuthor.ONE_PLUS_ONE,
-          AudioAuthor.KINAKONG,
-          AudioAuthor.MOVIE_DUBBING,
+  // Priority lists per locale (index 0 = highest priority)
+  private static final Map<Locale, List<AudioAuthor>> AUDIO_AUTHOR_PRIORITY = Map.of(
+      Locale.RU, List.of(
           AudioAuthor.PIFAGOR,
+          AudioAuthor.MOVIE_DALEN,
+          AudioAuthor.BRAVO_RECORDS_GEORGIA,
+          AudioAuthor.MOVIE_DUBBING,
+          AudioAuthor.READ_HEAD_SOUND,
           AudioAuthor.NOVAMEDIA,
           AudioAuthor.RENTV,
           AudioAuthor.KRAVEC_RECORDS,
+          AudioAuthor.LOSTFILM,
           AudioAuthor.KIRILLICA,
+          AudioAuthor.IVI,
+          AudioAuthor.KINOMANIA,
+          AudioAuthor.TVSHOWS,
+          AudioAuthor.HDREZKA,
+          AudioAuthor.VIRUSEPROJECT,
           AudioAuthor.JASKIER,
+          AudioAuthor.HDREZKA_18PLUS,
+          AudioAuthor.VIRUSEPROJECT_18PLUS,
           AudioAuthor.JASKIER_18PLUS
+      ),
+      Locale.UK, List.of(
+          AudioAuthor.POSTMODERN,
+          AudioAuthor.ONE_PLUS_ONE
+      ),
+      Locale.BE, List.of(
+          AudioAuthor.KINAKONG
       )
   );
 
@@ -109,7 +118,7 @@ public record Release(
    * Compares two audio tracks. Returns null if they are not comparable (different
    * languages, or both are commentary tracks). Positive means a1 is better.
    */
-  private static Integer compareAudio(AudioTrack a1, AudioTrack a2) {
+  public static Integer compareAudio(AudioTrack a1, AudioTrack a2) {
     if (a1.voiceType() == AudioVoiceType.COMMENTARY || a2.voiceType() == AudioVoiceType.COMMENTARY) return null;
     if (!Objects.equals(a1.language(), a2.language())) return null;
 
@@ -128,7 +137,11 @@ public record Release(
     if (i1 == -1 && i2 == -1) return null; // both unknown priority, incomparable
     if (i1 == -1) return -1; // a2 in list, a1 not → a2 wins
     if (i2 == -1) return 1;  // a1 in list, a2 not → a1 wins
-    return Integer.compare(i2, i1); // lower index = higher priority
+    int ret = Integer.compare(i2, i1); // lower index = higher priority
+    // LOSTFILM beats HDREZKA DUB regardless of priority list position
+    if (a1.voiceType() != AudioVoiceType.DUB && a1.author() == AudioAuthor.HDREZKA && a2.author() == AudioAuthor.LOSTFILM) ret = -1;
+    if (a2.voiceType() == AudioVoiceType.DUB && a2.author() == AudioAuthor.HDREZKA && a1.author() == AudioAuthor.LOSTFILM) ret = 1;
+    return ret;
   }
 
   private static int voiceTypePriority(AudioVoiceType v) {

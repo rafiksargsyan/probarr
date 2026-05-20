@@ -117,7 +117,7 @@ public class TVShowScanTransactionService {
             r.infoHash(),
             r.downloadUrl(),
             r.infoUrl(),
-            TorrentTracker.fromJackettName(r.tracker()).orElse(TorrentTracker.UNKNOWN),
+            TorrentTracker.fromJackettName(r.tracker()).orElse(null),
             r.sizeInBytes(),
             r.seeders(),
             resolution,
@@ -228,7 +228,7 @@ public class TVShowScanTransactionService {
 
         ReleaseCandidate candidate = new ReleaseCandidate(
             r.infoHash(), r.downloadUrl(), r.infoUrl(),
-            TorrentTracker.fromJackettName(r.tracker()).orElse(TorrentTracker.UNKNOWN),
+            TorrentTracker.fromJackettName(r.tracker()).orElse(null),
             r.sizeInBytes(), r.seeders(), resolution, ripType, null,
             r.publishDate(), TitleLanguageParser.parse(r.title()), r.title()
         );

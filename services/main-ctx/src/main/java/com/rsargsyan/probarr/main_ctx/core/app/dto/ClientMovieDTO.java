@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.app.dto;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ public record ClientMovieDTO(
   public record ClientReleaseDTO(
       String infoHash,
       String resolution,
+      Integer height,
       String ripType,
       String torrentSource,
       Integer fileIndex,
@@ -50,6 +52,7 @@ public record ClientMovieDTO(
       return new ClientReleaseDTO(
           r.infoHash(),
           r.resolution() != null ? r.resolution().name() : null,
+          r.height(),
           r.ripType() != null ? r.ripType().name() : null,
           src,
           r.fileIndex(),
@@ -61,13 +64,13 @@ public record ClientMovieDTO(
     }
   }
 
-  public record ClientAudioTrackDTO(String language, Integer channels) {
+  public record ClientAudioTrackDTO(Locale language, Integer channels) {
     public static ClientAudioTrackDTO from(AudioTrack t) {
       return new ClientAudioTrackDTO(t.language(), t.channels());
     }
   }
 
-  public record ClientSubtitleTrackDTO(String language) {
+  public record ClientSubtitleTrackDTO(Locale language) {
     public static ClientSubtitleTrackDTO from(SubtitleTrack t) {
       return new ClientSubtitleTrackDTO(t.language());
     }

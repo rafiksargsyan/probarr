@@ -1,13 +1,15 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.localentity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record AudioTrack(
-    String language,   // BCP-47, optional
-    String codec,      // e.g. "aac", "ac3", "dts"
-    Integer channels,  // e.g. 2, 6, 8
-    boolean isDefault,
+    int streamIndex,
+    Locale language,
+    Integer channels,
     AudioVoiceType voiceType,
     AudioAuthor author
 ) {}

@@ -113,9 +113,14 @@ public class MovieScanTransactionService {
           }
         }
         if (movie.getRuntimeMinutes() != null && r.sizeInBytes() != null && r.sizeInBytes() > 0) {
-          long bitrateKbps = (r.sizeInBytes() * 8L) / (movie.getRuntimeMinutes() * 60L * 1000L);
+          long runtimeSeconds = movie.getRuntimeMinutes() * 60L;
+          long bitrateKbps = (r.sizeInBytes() * 8L) / (runtimeSeconds * 1000L);
           if (bitrateKbps < config.minBitrateKbps) {
             log.debug("Skipping '{}': bitrate {}kbps below minimum {}kbps", r.title(), bitrateKbps, config.minBitrateKbps);
+            continue;
+          }
+          if (ripType == RipType.BR && r.sizeInBytes() / runtimeSeconds < 1_500_000) {
+            log.debug("Skipping '{}': BR bitrate {}/s below minimum 1500000 bytes/s", r.title(), r.sizeInBytes() / runtimeSeconds);
             continue;
           }
         }
@@ -123,7 +128,7 @@ public class MovieScanTransactionService {
             r.infoHash(),
             r.downloadUrl(),
             r.infoUrl(),
-            TorrentTracker.fromJackettName(r.tracker()).orElse(TorrentTracker.UNKNOWN),
+            TorrentTracker.fromJackettName(r.tracker()).orElse(null),
             r.sizeInBytes(),
             r.seeders(),
             resolution,

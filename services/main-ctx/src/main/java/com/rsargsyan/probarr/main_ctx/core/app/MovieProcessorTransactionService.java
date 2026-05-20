@@ -12,6 +12,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.service.SubsAuthorParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
@@ -328,7 +329,9 @@ public class MovieProcessorTransactionService {
         return false;
       }
 
-      String videoCodec = streams.get(0).path("codec_name").asText("unknown");
+      JsonNode videoStream = streams.get(0);
+      Integer width = videoStream.hasNonNull("width") ? videoStream.get("width").asInt() : null;
+      Integer height = videoStream.hasNonNull("height") ? videoStream.get("height").asInt() : null;
 
       boolean hasAudio = false;
       for (JsonNode s : streams) {
@@ -353,13 +356,13 @@ public class MovieProcessorTransactionService {
         runtimeSeconds = (int) duration;
       }
 
-      List<AudioTrack> audioTracks = extractAudioTracks(streams);
+      List<AudioTrack> audioTracks = extractAudioTracks(streams, movie.getOriginalLocale());
       List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams);
 
       String torrentSource = resolveTorrentSource(rc.infoHash());
 
       Release release = new Release(rc.infoHash(), mediaFile.name(),
-          fileStatus.fileSizeBytes(), videoCodec, rc.resolution(), rc.ripType(), rc.edition(),
+          fileStatus.fileSizeBytes(), rc.resolution(), width, height, rc.ripType(), rc.edition(),
           runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index());
 
       boolean accepted = movie.addRelease(release);
@@ -390,77 +393,57 @@ public class MovieProcessorTransactionService {
     }
   }
 
-  private List<AudioTrack> extractAudioTracks(JsonNode streams) {
+  private List<AudioTrack> extractAudioTracks(JsonNode streams, Locale originalLocale) {
     List<AudioTrack> result = new ArrayList<>();
     for (JsonNode s : streams) {
       if (!"audio".equals(s.path("codec_type").asText())) continue;
-      String codec = s.path("codec_name").asText(null);
       int channels = s.path("channels").asInt(0);
-      boolean isDefault = s.path("disposition").path("default").asInt(0) == 1;
       String langCode = s.path("tags").path("language").asText(null);
       String streamTitle = s.path("tags").path("title").asText(null);
-      String language = iso639ToTag(langCode);
+      Locale language = Locale.fromISO639_2(langCode).orElse(null);
       AudioAuthor author = AudioAuthorParser.parse(streamTitle);
       AudioVoiceType voiceType = AudioVoiceTypeParser.parse(streamTitle, author);
-      result.add(new AudioTrack(language, codec, channels == 0 ? null : channels, isDefault, voiceType, author));
+      if (voiceType == AudioVoiceType.ORIGINAL && originalLocale != null) language = originalLocale;
+      addAudioTrack(result, new AudioTrack(s.path("index").asInt(), language, channels == 0 ? null : channels, voiceType, author));
     }
     return result;
+  }
+
+  private static void addAudioTrack(List<AudioTrack> tracks, AudioTrack track) {
+    if (track.voiceType() == AudioVoiceType.COMMENTARY) {
+      boolean hasCommentaryForLang = tracks.stream()
+          .anyMatch(t -> t.voiceType() == AudioVoiceType.COMMENTARY
+              && java.util.Objects.equals(t.language(), track.language()));
+      if (!hasCommentaryForLang) tracks.add(track);
+      return;
+    }
+    for (AudioTrack existing : tracks) {
+      Integer cmp = Release.compareAudio(existing, track);
+      if (cmp != null && cmp >= 0) return;
+    }
+    tracks.removeIf(existing -> Release.compareAudio(existing, track) != null);
+    tracks.add(track);
   }
 
   private List<SubtitleTrack> extractSubtitleTracks(JsonNode streams) {
     List<SubtitleTrack> result = new ArrayList<>();
     for (JsonNode s : streams) {
       if (!"subtitle".equals(s.path("codec_type").asText())) continue;
-      String format = s.path("codec_name").asText(null);
-      boolean isDefault = s.path("disposition").path("default").asInt(0) == 1;
-      boolean isForced = s.path("disposition").path("forced").asInt(0) == 1;
       String langCode = s.path("tags").path("language").asText(null);
       String streamTitle = s.path("tags").path("title").asText(null);
-      String language = iso639ToTag(langCode);
+      Locale language = Locale.fromISO639_2(langCode).orElse(null);
       SubsAuthor author = SubsAuthorParser.parse(streamTitle);
-      SubsType subsType = SubsType.fromTitle(streamTitle, isForced);
-      result.add(new SubtitleTrack(language, format, isDefault, isForced, subsType, author));
+      SubsType subsType = SubsType.fromTitle(streamTitle);
+      addSubtitleTrack(result, new SubtitleTrack(s.path("index").asInt(), language, subsType, author));
     }
     return result;
   }
 
-  private static String iso639ToTag(String code) {
-    if (code == null) return null;
-    return switch (code.toLowerCase()) {
-      case "eng" -> "en";
-      case "rus" -> "ru";
-      case "fra", "fre" -> "fr";
-      case "deu", "ger" -> "de";
-      case "spa" -> "es";
-      case "ita" -> "it";
-      case "por" -> "pt";
-      case "zho", "chi" -> "zh";
-      case "jpn" -> "ja";
-      case "kor" -> "ko";
-      case "pol" -> "pl";
-      case "hun" -> "hu";
-      case "ces", "cze" -> "cs";
-      case "slk", "slo" -> "sk";
-      case "ron", "rum" -> "ro";
-      case "bul" -> "bg";
-      case "ukr" -> "uk";
-      case "lit" -> "lt";
-      case "heb" -> "he";
-      case "ell", "gre" -> "el";
-      case "tur" -> "tr";
-      case "ara" -> "ar";
-      case "hin" -> "hi";
-      case "vie" -> "vi";
-      case "tha" -> "th";
-      case "tel" -> "te";
-      case "urd" -> "ur";
-      case "nor" -> "no";
-      case "swe" -> "sv";
-      case "dan" -> "da";
-      case "fin" -> "fi";
-      case "nld", "dut" -> "nl";
-      default -> code;
-    };
+  private static void addSubtitleTrack(List<SubtitleTrack> tracks, SubtitleTrack track) {
+    boolean alreadyHave = tracks.stream()
+        .anyMatch(t -> java.util.Objects.equals(t.language(), track.language())
+            && java.util.Objects.equals(t.subsType(), track.subsType()));
+    if (!alreadyHave) tracks.add(track);
   }
 
   /** Returns the magnet URI if the URL redirects to one, otherwise null. */
