@@ -14,7 +14,8 @@ public enum TorrentTracker {
   CORSARO_NERO,
   CINECALIDAD,
   RARBG,
-  KINOZAL;
+  KINOZAL,
+  TORRENT_GALAXY;
 
   public static Optional<TorrentTracker> fromJackettName(String name) {
     if (name == null) return Optional.empty();
@@ -31,6 +32,7 @@ public enum TorrentTracker {
     if (n.contains("corsaro")) return Optional.of(CORSARO_NERO);
     if (n.contains("cinecalidad")) return Optional.of(CINECALIDAD);
     if (n.contains("kinozal")) return Optional.of(KINOZAL);
+    if (n.contains("torrentgalaxy") || n.contains("torrent galaxy") || n.contains("tgx")) return Optional.of(TORRENT_GALAXY);
     return Optional.empty();
   }
 }

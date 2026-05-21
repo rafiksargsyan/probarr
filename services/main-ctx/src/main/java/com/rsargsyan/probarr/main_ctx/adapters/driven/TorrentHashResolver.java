@@ -45,6 +45,13 @@ public class TorrentHashResolver {
           .GET()
           .build();
       HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+      if (response.statusCode() / 100 == 3) {
+        String location = response.headers().firstValue("Location").orElse(null);
+        if (location != null && location.startsWith("magnet:")) {
+          return extractFromMagnet(location);
+        }
+        return null;
+      }
       byte[] bytes = response.body();
       if (bytes == null || bytes.length == 0) return null;
       return extractFromTorrentBytes(bytes);
