@@ -5,6 +5,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -64,15 +65,15 @@ public record ClientMovieDTO(
     }
   }
 
-  public record ClientAudioTrackDTO(Locale language, Integer channels) {
+  public record ClientAudioTrackDTO(int streamIndex, Locale language, Integer channels) {
     public static ClientAudioTrackDTO from(AudioTrack t) {
-      return new ClientAudioTrackDTO(t.language(), t.channels());
+      return new ClientAudioTrackDTO(t.streamIndex(), t.language(), t.channels());
     }
   }
 
-  public record ClientSubtitleTrackDTO(Locale language) {
+  public record ClientSubtitleTrackDTO(int streamIndex, Locale language, SubsType subsType) {
     public static ClientSubtitleTrackDTO from(SubtitleTrack t) {
-      return new ClientSubtitleTrackDTO(t.language());
+      return new ClientSubtitleTrackDTO(t.streamIndex(), t.language(), t.subsType());
     }
   }
 }
