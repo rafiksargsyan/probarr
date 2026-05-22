@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.domain.valueobject;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +30,17 @@ public record Release(
 ) {
 
   // Priority lists per locale (index 0 = highest priority)
+  private static final Map<Locale, List<SubsAuthor>> SUBS_AUTHOR_PRIORITY = Map.of(
+      Locale.RU, List.of(
+          SubsAuthor.HDREZKA_18PLUS,
+          SubsAuthor.COOL_STORY_BLOG_18PLUS,
+          SubsAuthor.HDREZKA,
+          SubsAuthor.COOL_STORY_BLOG,
+          SubsAuthor.TVSHOWS,
+          SubsAuthor.KINOMANIA
+      )
+  );
+
   private static final Map<Locale, List<AudioAuthor>> AUDIO_AUTHOR_PRIORITY = Map.of(
       Locale.RU, List.of(
           AudioAuthor.PIFAGOR,
@@ -142,6 +154,25 @@ public record Release(
     if (a1.voiceType() != AudioVoiceType.DUB && a1.author() == AudioAuthor.HDREZKA && a2.author() == AudioAuthor.LOSTFILM) ret = -1;
     if (a2.voiceType() == AudioVoiceType.DUB && a2.author() == AudioAuthor.HDREZKA && a1.author() == AudioAuthor.LOSTFILM) ret = 1;
     return ret;
+  }
+
+  /**
+   * Compares two subtitle tracks. Returns null if they are not comparable (different language or type).
+   * Positive means s1 is better.
+   */
+  public static Integer compareSubs(SubtitleTrack s1, SubtitleTrack s2) {
+    if (!Objects.equals(s1.language(), s2.language()) || !Objects.equals(s1.subsType(), s2.subsType())) return null;
+    if (s1.author() == null && s2.author() == null) return 0;
+    if (s1.author() == null) return -1;
+    if (s2.author() == null) return 1;
+    if (s1.author() == s2.author()) return 0;
+    List<SubsAuthor> priorityList = SUBS_AUTHOR_PRIORITY.getOrDefault(s1.language(), List.of());
+    int i1 = priorityList.indexOf(s1.author());
+    int i2 = priorityList.indexOf(s2.author());
+    if (i1 == -1 && i2 == -1) return null;
+    if (i1 == -1) return -1;
+    if (i2 == -1) return 1;
+    return Integer.compare(i2, i1); // lower index = higher priority
   }
 
   private static int voiceTypePriority(AudioVoiceType v) {

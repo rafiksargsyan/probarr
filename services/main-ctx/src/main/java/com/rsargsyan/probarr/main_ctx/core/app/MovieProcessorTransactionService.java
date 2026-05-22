@@ -12,6 +12,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.service.SubsAuthorParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Language;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
@@ -33,6 +34,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 
 @Slf4j
@@ -78,6 +80,7 @@ public class MovieProcessorTransactionService {
       if (movie.isBlacklisted(rc.infoHash())) continue;
       if (movie.getWhiteList().contains(rc.infoHash())) continue;
       if (movie.getCoolDownList().contains(rc.infoHash())) continue;
+      if (isOldGenericRelease(rc, movie.getReleaseDate(), movie.getOriginalLocale())) continue;
 
       try {
         Optional<GrabberrClient.TorrentDownloadDTO> torrentOpt = grabberrClient.findByInfoHash(rc.infoHash());
@@ -357,7 +360,7 @@ public class MovieProcessorTransactionService {
       }
 
       List<AudioTrack> audioTracks = extractAudioTracks(streams, movie.getOriginalLocale());
-      List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams);
+      List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams, movie.getOriginalLocale());
 
       String torrentSource = resolveTorrentSource(rc.infoHash());
 
@@ -394,19 +397,50 @@ public class MovieProcessorTransactionService {
   }
 
   private List<AudioTrack> extractAudioTracks(JsonNode streams, Locale originalLocale) {
+    int numUndefinedAudio = 0;
+    for (JsonNode s : streams) {
+      if (!"audio".equals(s.path("codec_type").asText())) continue;
+      String lc = s.path("tags").path("language").asText(null);
+      if (lc == null || "und".equals(lc)) numUndefinedAudio++;
+    }
     List<AudioTrack> result = new ArrayList<>();
     for (JsonNode s : streams) {
       if (!"audio".equals(s.path("codec_type").asText())) continue;
       int channels = s.path("channels").asInt(0);
       String langCode = s.path("tags").path("language").asText(null);
+      if ((langCode == null || "und".equals(langCode)) && numUndefinedAudio > 1) continue;
       String streamTitle = s.path("tags").path("title").asText(null);
       Locale language = Locale.fromISO639_2(langCode).orElse(null);
       AudioAuthor author = AudioAuthorParser.parse(streamTitle);
-      AudioVoiceType voiceType = AudioVoiceTypeParser.parse(streamTitle, author);
-      if (voiceType == AudioVoiceType.ORIGINAL && originalLocale != null) language = originalLocale;
+      AudioVoiceType voiceType = AudioVoiceTypeParser.parse(streamTitle, author, language, originalLocale);
+      if (voiceType == AudioVoiceType.ORIGINAL && originalLocale != null) {
+        language = originalLocale;
+      } else if (language != null && originalLocale != null) {
+        String detectedTag = language.getTag();
+        String originalTag = originalLocale.getTag();
+        if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
+      }
+      if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
       addAudioTrack(result, new AudioTrack(s.path("index").asInt(), language, channels == 0 ? null : channels, voiceType, author));
     }
     return result;
+  }
+
+  private static Locale refineLocaleFromTitle(Locale locale, String streamTitle) {
+    String t = streamTitle.toLowerCase();
+    if (locale == Locale.ES) {
+      if (t.contains("latin")) return Locale.ES_419;
+      if (t.contains("spain")) return Locale.ES_ES;
+    }
+    if (locale == Locale.FR) {
+      if (t.contains("canad") || t.contains("vfq")) return Locale.FR_CA;
+      if (t.contains("france") || t.contains("vff")) return Locale.FR_FR;
+    }
+    if (locale == Locale.PT) {
+      if (t.contains("brazil") || streamTitle.contains("BR")) return Locale.PT_BR;
+      if (t.contains("portugal")) return Locale.PT_PT;
+    }
+    return locale;
   }
 
   private static void addAudioTrack(List<AudioTrack> tracks, AudioTrack track) {
@@ -425,13 +459,21 @@ public class MovieProcessorTransactionService {
     tracks.add(track);
   }
 
-  private List<SubtitleTrack> extractSubtitleTracks(JsonNode streams) {
+  private List<SubtitleTrack> extractSubtitleTracks(JsonNode streams, Locale originalLocale) {
     List<SubtitleTrack> result = new ArrayList<>();
     for (JsonNode s : streams) {
       if (!"subtitle".equals(s.path("codec_type").asText())) continue;
+      String codecName = s.path("codec_name").asText(null);
+      if (!"subrip".equals(codecName) && !"ass".equals(codecName) && !"webvtt".equals(codecName)) continue;
       String langCode = s.path("tags").path("language").asText(null);
       String streamTitle = s.path("tags").path("title").asText(null);
       Locale language = Locale.fromISO639_2(langCode).orElse(null);
+      if (language != null && originalLocale != null) {
+        String detectedTag = language.getTag();
+        String originalTag = originalLocale.getTag();
+        if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
+      }
+      if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
       SubsAuthor author = SubsAuthorParser.parse(streamTitle);
       SubsType subsType = SubsType.fromTitle(streamTitle);
       addSubtitleTrack(result, new SubtitleTrack(s.path("index").asInt(), language, subsType, author));
@@ -440,10 +482,15 @@ public class MovieProcessorTransactionService {
   }
 
   private static void addSubtitleTrack(List<SubtitleTrack> tracks, SubtitleTrack track) {
-    boolean alreadyHave = tracks.stream()
-        .anyMatch(t -> java.util.Objects.equals(t.language(), track.language())
-            && java.util.Objects.equals(t.subsType(), track.subsType()));
-    if (!alreadyHave) tracks.add(track);
+    for (SubtitleTrack existing : tracks) {
+      Integer cmp = Release.compareSubs(existing, track);
+      if (cmp != null && cmp >= 0) return;
+    }
+    tracks.removeIf(existing -> {
+      Integer cmp = Release.compareSubs(existing, track);
+      return cmp != null && cmp < 0;
+    });
+    tracks.add(track);
   }
 
   /** Returns the magnet URI if the URL redirects to one, otherwise null. */
@@ -521,6 +568,59 @@ public class MovieProcessorTransactionService {
     } catch (Exception e) {
       log.error("Failed to unclaim file for rc={}: {}", infoHash, e.getMessage());
     }
+  }
+
+  private static boolean isOldGenericRelease(ReleaseCandidate rc, LocalDate contentDate, Locale originalLocale) {
+    if (rc.tracker() == null || rc.tracker().isLanguageSpecific()) return false;
+    if (contentDate == null) return false;
+    if (!contentDate.isBefore(LocalDate.now().minusMonths(3))) return false;
+    return isGenericLanguageRelease(rc.languages(), originalLocale);
+  }
+
+  private static boolean isGenericLanguageRelease(List<Language> languages, Locale originalLocale) {
+    if (languages == null || languages.isEmpty()) return true;
+    if (languages.size() == 1 && languages.get(0) == Language.ORIGINAL) return true;
+    if (languages.size() == 1 && originalLocale != null) return languageMatchesLocaleBase(languages.get(0), originalLocale);
+    return false;
+  }
+
+  private static boolean languageMatchesLocaleBase(Language lang, Locale locale) {
+    String base = locale.getTag().split("-")[0];
+    return switch (lang) {
+      case ENGLISH -> "en".equals(base);
+      case RUSSIAN -> "ru".equals(base);
+      case FRENCH -> "fr".equals(base);
+      case SPANISH, SPANISH_LATINO -> "es".equals(base);
+      case GERMAN -> "de".equals(base);
+      case ITALIAN -> "it".equals(base);
+      case PORTUGUESE, PORTUGUESE_BR -> "pt".equals(base);
+      case HINDI -> "hi".equals(base);
+      case JAPANESE -> "ja".equals(base);
+      case KOREAN -> "ko".equals(base);
+      case CHINESE -> "zh".equals(base);
+      case DUTCH -> "nl".equals(base);
+      case NORWEGIAN -> "nb".equals(base);
+      case SWEDISH -> "sv".equals(base);
+      case DANISH -> "da".equals(base);
+      case POLISH -> "pl".equals(base);
+      case UKRAINIAN -> "uk".equals(base);
+      case ROMANIAN -> "ro".equals(base);
+      case CZECH -> "cs".equals(base);
+      case HUNGARIAN -> "hu".equals(base);
+      case BULGARIAN -> "bg".equals(base);
+      case SLOVAK -> "sk".equals(base);
+      case LITHUANIAN -> "lt".equals(base);
+      case ARABIC -> "ar".equals(base);
+      case HEBREW -> "he".equals(base);
+      case TURKISH -> "tr".equals(base);
+      case GREEK -> "el".equals(base);
+      case FINNISH -> "fi".equals(base);
+      case VIETNAMESE -> "vi".equals(base);
+      case THAI -> "th".equals(base);
+      case TELUGU -> "te".equals(base);
+      case URDU -> "ur".equals(base);
+      default -> false;
+    };
   }
 
   private Comparator<ReleaseCandidate> releaseCandidateComparator() {

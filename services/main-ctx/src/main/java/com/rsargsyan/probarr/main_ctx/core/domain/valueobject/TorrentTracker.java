@@ -17,6 +17,12 @@ public enum TorrentTracker {
   KINOZAL,
   TORRENT_GALAXY;
 
+  public boolean isLanguageSpecific() {
+    return this == RUTRACKER_ORG || this == RUTRACKER_RU || this == RUTOR
+        || this == OXTORRENT || this == DONTORRENT || this == CORSARO_NERO
+        || this == CINECALIDAD || this == KINOZAL;
+  }
+
   public static Optional<TorrentTracker> fromJackettName(String name) {
     if (name == null) return Optional.empty();
     String n = name.toLowerCase();
