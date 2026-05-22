@@ -45,7 +45,7 @@ export function TVShowsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
-    originalLocale: 'EN_US' as Locale,
+    originalLocale: 'en-US' as Locale,
     tmdbId: '',
     imdbId: '',
     tvdbId: '',
@@ -68,7 +68,7 @@ export function TVShowsPage() {
   function resetForm() {
     setForm({
       originalTitle: '',
-      originalLocale: 'EN_US',
+      originalLocale: 'en-US',
       tmdbId: '',
       imdbId: '',
       tvdbId: '',

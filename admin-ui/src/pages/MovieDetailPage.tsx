@@ -81,7 +81,7 @@ export function MovieDetailPage() {
   const [selectedRelease, setSelectedRelease] = useState<object | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
-    originalLocale: 'EN_US' as Locale,
+    originalLocale: 'en-US' as Locale,
     releaseDate: '',
     runtimeMinutes: '',
     tmdbId: '',

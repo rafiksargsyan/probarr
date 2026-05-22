@@ -43,7 +43,7 @@ export function MoviesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     originalTitle: '',
-    originalLocale: 'EN_US' as Locale,
+    originalLocale: 'en-US' as Locale,
     releaseDate: '',
     runtimeMinutes: '',
     tmdbId: '',
@@ -63,7 +63,7 @@ export function MoviesPage() {
   }, [user, page, rowsPerPage]);
 
   function resetForm() {
-    setForm({ originalTitle: '', originalLocale: 'EN_US', releaseDate: '', runtimeMinutes: '', tmdbId: '', alternativeTitles: '' });
+    setForm({ originalTitle: '', originalLocale: 'en-US', releaseDate: '', runtimeMinutes: '', tmdbId: '', alternativeTitles: '' });
     setFormError(null);
   }
 

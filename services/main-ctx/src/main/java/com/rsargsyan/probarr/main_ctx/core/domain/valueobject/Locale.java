@@ -88,7 +88,7 @@ public enum Locale {
     for (Locale l : values()) {
       if (l.tag.equalsIgnoreCase(value)) return l;
     }
-    return fromISO639_2(value).orElse(null);
+    return fromISO639_2(value).orElseThrow(() -> new IllegalArgumentException("Unknown locale: " + value));
   }
 
   public static java.util.Optional<Locale> fromTag(String tag) {
