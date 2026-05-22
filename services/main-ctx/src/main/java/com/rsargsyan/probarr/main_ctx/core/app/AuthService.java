@@ -8,6 +8,8 @@ import com.rsargsyan.probarr.main_ctx.core.ports.repository.PrincipalRepository;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.UserProfileRepository;
 import io.hypersistence.tsid.TSID;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.Instant;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,8 +53,7 @@ public class AuthService {
     if (apiKeyOpt.isEmpty()) return null;
     ApiKey apiKey = apiKeyOpt.get();
     UserProfile userProfile = apiKey.getUserProfile();
-    apiKey.accessed();
-    apiKeyRepository.save(apiKey);
+    apiKeyRepository.updateLastAccessTime(apiKey.getId(), Instant.now());
     return new UserProfileContext(
         userProfile.getStrId(),
         userProfile.getPrincipal().getExternalId()

@@ -1,6 +1,7 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
 import com.rsargsyan.probarr.main_ctx.core.Util;
+import com.rsargsyan.probarr.main_ctx.core.app.dto.ClientEpisodeDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.EpisodeCreationDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.EpisodeDTO;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Episode;
@@ -31,6 +32,30 @@ public class EpisodeService {
     this.episodeRepository = episodeRepository;
     this.tvShowRepository = tvShowRepository;
     this.tvShowScanTransactionService = tvShowScanTransactionService;
+  }
+
+  public ClientEpisodeDTO getClientEpisodeByTvShowId(String tvShowIdStr, int seasonNumber, int episodeNumber) {
+    Long tvShowId = Util.validateTSID(tvShowIdStr);
+    Episode episode = episodeRepository
+        .findByTvShowIdAndSeasonNumberAndEpisodeNumber(tvShowId, seasonNumber, episodeNumber)
+        .orElseThrow(ResourceNotFoundException::new);
+    return ClientEpisodeDTO.from(episode);
+  }
+
+  public ClientEpisodeDTO getClientEpisodeByTvShowTmdbId(Long tmdbId, int seasonNumber, int episodeNumber) {
+    TVShow tvShow = tvShowRepository.findByTmdbId(tmdbId).orElseThrow(ResourceNotFoundException::new);
+    Episode episode = episodeRepository
+        .findByTvShowIdAndSeasonNumberAndEpisodeNumber(tvShow.getId(), seasonNumber, episodeNumber)
+        .orElseThrow(ResourceNotFoundException::new);
+    return ClientEpisodeDTO.from(episode);
+  }
+
+  public ClientEpisodeDTO getClientEpisodeByTvShowTvdbId(Long tvdbId, int seasonNumber, int episodeNumber) {
+    TVShow tvShow = tvShowRepository.findByTvdbId(tvdbId).orElseThrow(ResourceNotFoundException::new);
+    Episode episode = episodeRepository
+        .findByTvShowIdAndSeasonNumberAndEpisodeNumber(tvShow.getId(), seasonNumber, episodeNumber)
+        .orElseThrow(ResourceNotFoundException::new);
+    return ClientEpisodeDTO.from(episode);
   }
 
   public List<EpisodeDTO> listEpisodes(String tvShowIdStr, Integer seasonNumber) {
