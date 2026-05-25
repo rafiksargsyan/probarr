@@ -145,51 +145,54 @@ public class Movie extends AggregateRoot {
   }
 
   public void removeReleaseCandidate(String infoHash) {
-    if (releaseCandidates.removeIf(rc -> rc.infoHash().equals(infoHash))) {
+    if (releaseCandidates.removeIf(rc -> rc.infoHash().equalsIgnoreCase(infoHash))) {
       touch();
     }
   }
 
   public void addToCoolDown(String infoHash) {
-    if (!coolDownList.contains(infoHash)) {
-      coolDownList.add(infoHash);
+    String h = infoHash.toLowerCase();
+    if (!coolDownList.contains(h)) {
+      coolDownList.add(h);
       touch();
     }
   }
 
   public void removeFromCoolDown(String infoHash) {
-    if (coolDownList.remove(infoHash)) {
+    if (coolDownList.remove(infoHash.toLowerCase())) {
       touch();
     }
   }
 
   public void addToBlackList(String infoHash, BlacklistReason reason) {
-    boolean exists = blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash));
+    String h = infoHash.toLowerCase();
+    boolean exists = blackList.stream().anyMatch(e -> e.infoHash().equals(h));
     if (!exists) {
-      blackList.add(new BlacklistEntry(infoHash, reason));
+      blackList.add(new BlacklistEntry(h, reason));
       touch();
     }
   }
 
   public void removeFromBlackList(String infoHash) {
-    if (blackList.removeIf(e -> e.infoHash().equals(infoHash))) {
+    if (blackList.removeIf(e -> e.infoHash().equals(infoHash.toLowerCase()))) {
       touch();
     }
   }
 
   public boolean isBlacklisted(String infoHash) {
-    return blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash));
+    return blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash.toLowerCase()));
   }
 
   public void addToWhiteList(String infoHash) {
-    if (!whiteList.contains(infoHash)) {
-      whiteList.add(infoHash);
+    String h = infoHash.toLowerCase();
+    if (!whiteList.contains(h)) {
+      whiteList.add(h);
       touch();
     }
   }
 
   public void removeFromWhiteList(String infoHash) {
-    if (whiteList.remove(infoHash)) {
+    if (whiteList.remove(infoHash.toLowerCase())) {
       touch();
     }
   }
