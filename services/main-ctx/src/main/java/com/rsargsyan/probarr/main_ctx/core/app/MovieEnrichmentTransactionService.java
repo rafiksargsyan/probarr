@@ -38,6 +38,15 @@ public class MovieEnrichmentTransactionService {
     List<TmdbClient.AlternativeTitle> altTitles = tmdbClient.getAlternativeTitles(tmdbId);
     List<Integer> alternativeReleaseYears = tmdbClient.getReleaseDateYears(tmdbId);
 
+    int primaryYear = enUs != null && enUs.releaseDate() != null
+        ? enUs.releaseDate().getYear()
+        : (ru != null && ru.releaseDate() != null ? ru.releaseDate().getYear() : -1);
+    if (primaryYear > 0) {
+      alternativeReleaseYears = alternativeReleaseYears.stream()
+          .filter(y -> Math.abs(y - primaryYear) <= 1)
+          .toList();
+    }
+
     String titleEnUs = enUs != null ? enUs.title() : null;
     String titleRu = ru != null ? ru.title() : null;
     List<String> romanizedTitles = altTitles.stream()
