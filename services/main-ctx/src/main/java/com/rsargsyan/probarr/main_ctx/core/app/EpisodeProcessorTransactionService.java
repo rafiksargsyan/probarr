@@ -373,6 +373,11 @@ public class EpisodeProcessorTransactionService {
       }
 
       List<AudioTrack> audioTracks = extractAudioTracks(streams, episode.getTvShow().getOriginalLocale());
+      if (audioTracks.isEmpty()) {
+        log.warn("No audio tracks with detectable language for rc={}, blacklisting", rc.infoHash());
+        episode.addToBlackList(rc.infoHash(), BlacklistReason.NO_AUDIO_TRACKS);
+        return false;
+      }
       List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams, episode.getTvShow().getOriginalLocale());
 
       String torrentSource = resolveTorrentSource(rc.infoHash());
@@ -440,6 +445,7 @@ public class EpisodeProcessorTransactionService {
         if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
       }
       if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
+      if (language == null) continue;
       addAudioTrack(result, new AudioTrack(s.path("index").asInt(), language, channels == 0 ? null : channels, voiceType, author));
     }
     return result;

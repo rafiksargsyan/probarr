@@ -80,7 +80,7 @@ public record Release(
    * Releases with different editions are always incomparable.
    */
   public static Integer compare(Release r1, Release r2) {
-    if (!Objects.equals(r1.edition(), r2.edition())) return null;
+    if (r1.edition() != null && r2.edition() != null && r1.edition() != r2.edition()) return null;
 
     List<AudioTrack> r1Unmatched = new ArrayList<>(r1.audioTracks());
     List<AudioTrack> r2Unmatched = new ArrayList<>(r2.audioTracks());
@@ -107,7 +107,9 @@ public record Release(
       if (resCmp != 0) return resCmp;
     }
 
-    return r1Unmatched.size() - r2Unmatched.size();
+    int audioSizeCmp = r1Unmatched.size() - r2Unmatched.size();
+    if (audioSizeCmp != 0) return audioSizeCmp;
+    return Boolean.compare(r1.edition() != null, r2.edition() != null);
   }
 
   /**

@@ -360,6 +360,11 @@ public class MovieProcessorTransactionService {
       }
 
       List<AudioTrack> audioTracks = extractAudioTracks(streams, movie.getOriginalLocale());
+      if (audioTracks.isEmpty()) {
+        log.warn("No audio tracks with detectable language for rc={}, blacklisting", rc.infoHash());
+        movie.addToBlackList(rc.infoHash(), BlacklistReason.NO_AUDIO_TRACKS);
+        return false;
+      }
       List<SubtitleTrack> subtitleTracks = extractSubtitleTracks(streams, movie.getOriginalLocale());
 
       String torrentSource = resolveTorrentSource(rc.infoHash());
@@ -421,6 +426,7 @@ public class MovieProcessorTransactionService {
         if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
       }
       if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
+      if (language == null) continue;
       addAudioTrack(result, new AudioTrack(s.path("index").asInt(), language, channels == 0 ? null : channels, voiceType, author));
     }
     return result;
