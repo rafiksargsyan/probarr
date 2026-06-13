@@ -277,17 +277,32 @@ public class Movie extends AggregateRoot {
       if (cmp == 0) {
         if (existing.infoHash().equals(newRelease.infoHash())) return false;
         if (Release.compare2(existing, newRelease) >= 0) return false; // existing wins tiebreaker
+        List<String> replaced = collectReplacedHashes(List.of(existing));
         releases.remove(existing);
-        releases.add(newRelease);
+        releases.add(newRelease.withReplacedInfoHashes(replaced));
         touch();
         return true;
       }
       toReplace.add(existing); // new is better — mark for replacement
     }
-    releases.removeAll(toReplace);
-    releases.add(newRelease);
+    if (!toReplace.isEmpty()) {
+      List<String> replaced = collectReplacedHashes(toReplace);
+      releases.removeAll(toReplace);
+      releases.add(newRelease.withReplacedInfoHashes(replaced));
+    } else {
+      releases.add(newRelease);
+    }
     touch();
     return true;
+  }
+
+  private static List<String> collectReplacedHashes(List<Release> replaced) {
+    List<String> hashes = new ArrayList<>();
+    for (Release r : replaced) {
+      hashes.add(r.infoHash());
+      if (r.replacedInfoHashes() != null) hashes.addAll(r.replacedInfoHashes());
+    }
+    return hashes;
   }
 
   public void clearReleaseCandidates() {

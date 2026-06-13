@@ -384,7 +384,7 @@ public class EpisodeProcessorTransactionService {
 
       Release release = new Release(rc.infoHash(), mediaFile.name(),
           fileStatus.fileSizeBytes(), rc.resolution(), width, height, rc.ripType(), null,
-          runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index());
+          runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index(), null);
 
       boolean accepted = episode.addRelease(release);
       log.info("Release for episode '{}' rc={}: {}", episodeLabel(episode), rc.infoHash(),

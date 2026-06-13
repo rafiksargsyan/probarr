@@ -371,7 +371,7 @@ public class MovieProcessorTransactionService {
 
       Release release = new Release(rc.infoHash(), mediaFile.name(),
           fileStatus.fileSizeBytes(), rc.resolution(), width, height, rc.ripType(), rc.edition(),
-          runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index());
+          runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index(), null);
 
       boolean accepted = movie.addRelease(release);
       log.info("Release for '{}' rc={}: {}", movie.getOriginalTitle(), rc.infoHash(),

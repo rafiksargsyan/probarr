@@ -26,8 +26,15 @@ public record Release(
     List<SubtitleTrack> subtitleTracks,
     Instant addedAt,
     String torrentSource,
-    Integer fileIndex
+    Integer fileIndex,
+    List<String> replacedInfoHashes
 ) {
+
+  public Release withReplacedInfoHashes(List<String> hashes) {
+    return new Release(infoHash, filePath, fileSizeBytes, resolution, width, height,
+        ripType, edition, runtimeSeconds, audioTracks, subtitleTracks,
+        addedAt, torrentSource, fileIndex, hashes);
+  }
 
   // Priority lists per locale (index 0 = highest priority)
   private static final Map<Locale, List<SubsAuthor>> SUBS_AUTHOR_PRIORITY = Map.of(

@@ -45,7 +45,8 @@ public record ClientMovieDTO(
       String magnetUri,
       boolean hasTorrentFile,
       List<ClientAudioTrackDTO> audioTracks,
-      List<ClientSubtitleTrackDTO> subtitleTracks
+      List<ClientSubtitleTrackDTO> subtitleTracks,
+      List<String> replacedInfoHashes
   ) {
     public static ClientReleaseDTO from(Release r) {
       String src = r.torrentSource();
@@ -60,7 +61,8 @@ public record ClientMovieDTO(
           isMagnet ? src : null,
           !isMagnet && src != null,
           r.audioTracks().stream().map(ClientAudioTrackDTO::from).toList(),
-          r.subtitleTracks().stream().map(ClientSubtitleTrackDTO::from).toList()
+          r.subtitleTracks().stream().map(ClientSubtitleTrackDTO::from).toList(),
+          r.replacedInfoHashes()
       );
     }
   }
