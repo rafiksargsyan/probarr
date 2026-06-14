@@ -130,7 +130,7 @@ public record Release(
       if (ripCmp != 0) return ripCmp;
       int subsCmp = Integer.compare(r1.subtitleTracks().size(), r2.subtitleTracks().size());
       if (subsCmp != 0) return subsCmp;
-      return Long.compare(r2.fileSizeBytes(), r1.fileSizeBytes()); // smaller is better
+      return 0;
     }
     return r1.addedAt().compareTo(r2.addedAt()); // newer is better
   }
