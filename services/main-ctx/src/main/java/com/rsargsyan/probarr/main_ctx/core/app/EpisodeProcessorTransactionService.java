@@ -12,8 +12,8 @@ import com.rsargsyan.probarr.main_ctx.core.domain.service.SubsAuthorParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
-import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Language;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.TorrentTracker;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
@@ -33,7 +33,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -81,11 +80,32 @@ public class EpisodeProcessorTransactionService {
     String label = episodeLabel(episode);
     boolean shouldBreak = false;
 
-    for (ReleaseCandidate rc : candidates) {
+    for (int i = 0; i < candidates.size(); i++) {
+      ReleaseCandidate rc = candidates.get(i);
       if (episode.isBlacklisted(rc.infoHash())) continue;
-      if (episode.getWhiteList().contains(rc.infoHash())) continue;
-      if (episode.getCoolDownList().contains(rc.infoHash())) continue;
-      if (isOldGenericRelease(rc, episode.getAirDate(), episode.getTvShow().getOriginalLocale())) continue;
+      if (episode.isWhiteListed(rc.infoHash())) continue;
+      if (episode.isOnCoolDown(rc.infoHash())) continue;
+      if (rc.tracker() != null && rc.tracker().isLanguageSpecific()
+          && rc.tracker() != TorrentTracker.RUTOR
+          && rc.tracker() != TorrentTracker.RUTRACKER_ORG
+          && rc.tracker() != TorrentTracker.RUTRACKER_RU
+          && rc.tracker() != TorrentTracker.KINOZAL) {
+        boolean betterAlreadyAccepted = false;
+        for (int j = 0; j < i; j++) {
+          ReleaseCandidate prevRc = candidates.get(j);
+          if (rc.tracker() == prevRc.tracker()
+              && episode.isWhiteListed(prevRc.infoHash())) {
+            betterAlreadyAccepted = true;
+            break;
+          }
+        }
+        if (betterAlreadyAccepted) {
+          log.debug("Blacklisting rc={} for episode='{}': superseded by better release from same tracker",
+              rc.infoHash(), label);
+          episode.addToBlackList(rc.infoHash(), BlacklistReason.SUPERSEDED);
+          continue;
+        }
+      }
 
       try {
         Optional<GrabberrClient.TorrentDownloadDTO> torrentOpt = grabberrClient.findByInfoHash(rc.infoHash());
@@ -202,8 +222,8 @@ public class EpisodeProcessorTransactionService {
 
     boolean allDone = candidates.stream().allMatch(rc ->
         episode.isBlacklisted(rc.infoHash())
-        || episode.getWhiteList().contains(rc.infoHash())
-        || episode.getCoolDownList().contains(rc.infoHash()));
+        || episode.isWhiteListed(rc.infoHash())
+        || episode.isOnCoolDown(rc.infoHash()));
     if (allDone) {
       log.info("All candidates processed for episode '{}', clearing RC list", label);
       episode.clearReleaseCandidates();
@@ -574,59 +594,6 @@ public class EpisodeProcessorTransactionService {
     } catch (Exception e) {
       log.error("Failed to unclaim file for rc={}: {}", infoHash, e.getMessage());
     }
-  }
-
-  private static boolean isOldGenericRelease(ReleaseCandidate rc, LocalDate contentDate, Locale originalLocale) {
-    if (rc.tracker() == null || rc.tracker().isLanguageSpecific()) return false;
-    if (contentDate == null) return false;
-    if (!contentDate.isBefore(LocalDate.now().minusMonths(3))) return false;
-    return isGenericLanguageRelease(rc.languages(), originalLocale);
-  }
-
-  private static boolean isGenericLanguageRelease(List<Language> languages, Locale originalLocale) {
-    if (languages == null || languages.isEmpty()) return true;
-    if (languages.size() == 1 && languages.get(0) == Language.ORIGINAL) return true;
-    if (languages.size() == 1 && originalLocale != null) return languageMatchesLocaleBase(languages.get(0), originalLocale);
-    return false;
-  }
-
-  private static boolean languageMatchesLocaleBase(Language lang, Locale locale) {
-    String base = locale.getTag().split("-")[0];
-    return switch (lang) {
-      case ENGLISH -> "en".equals(base);
-      case RUSSIAN -> "ru".equals(base);
-      case FRENCH -> "fr".equals(base);
-      case SPANISH, SPANISH_LATINO -> "es".equals(base);
-      case GERMAN -> "de".equals(base);
-      case ITALIAN -> "it".equals(base);
-      case PORTUGUESE, PORTUGUESE_BR -> "pt".equals(base);
-      case HINDI -> "hi".equals(base);
-      case JAPANESE -> "ja".equals(base);
-      case KOREAN -> "ko".equals(base);
-      case CHINESE -> "zh".equals(base);
-      case DUTCH -> "nl".equals(base);
-      case NORWEGIAN -> "nb".equals(base);
-      case SWEDISH -> "sv".equals(base);
-      case DANISH -> "da".equals(base);
-      case POLISH -> "pl".equals(base);
-      case UKRAINIAN -> "uk".equals(base);
-      case ROMANIAN -> "ro".equals(base);
-      case CZECH -> "cs".equals(base);
-      case HUNGARIAN -> "hu".equals(base);
-      case BULGARIAN -> "bg".equals(base);
-      case SLOVAK -> "sk".equals(base);
-      case LITHUANIAN -> "lt".equals(base);
-      case ARABIC -> "ar".equals(base);
-      case HEBREW -> "he".equals(base);
-      case TURKISH -> "tr".equals(base);
-      case GREEK -> "el".equals(base);
-      case FINNISH -> "fi".equals(base);
-      case VIETNAMESE -> "vi".equals(base);
-      case THAI -> "th".equals(base);
-      case TELUGU -> "te".equals(base);
-      case URDU -> "ur".equals(base);
-      default -> false;
-    };
   }
 
   private Comparator<ReleaseCandidate> releaseCandidateComparator() {

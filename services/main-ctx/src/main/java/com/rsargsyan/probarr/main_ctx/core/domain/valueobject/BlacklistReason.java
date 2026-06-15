@@ -8,5 +8,6 @@ public enum BlacklistReason {
   FILE_DOWNLOAD_FAILED,
   PROCESSING_FAILED,
   PROCESSING_ERROR,
+  SUPERSEDED,
   MANUAL
 }

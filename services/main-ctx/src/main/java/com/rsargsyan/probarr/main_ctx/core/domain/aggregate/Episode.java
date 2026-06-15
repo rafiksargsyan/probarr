@@ -195,6 +195,14 @@ public class Episode extends AggregateRoot {
     return blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash.toLowerCase()));
   }
 
+  public boolean isWhiteListed(String infoHash) {
+    return whiteList.contains(infoHash.toLowerCase());
+  }
+
+  public boolean isOnCoolDown(String infoHash) {
+    return coolDownList.contains(infoHash.toLowerCase());
+  }
+
   public void addToWhiteList(String infoHash) {
     String h = infoHash.toLowerCase();
     if (!whiteList.contains(h)) {
