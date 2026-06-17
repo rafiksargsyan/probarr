@@ -43,17 +43,22 @@ public class AudioVoiceTypeParser {
    * Returns null if type cannot be determined.
    */
   public static AudioVoiceType parse(String streamTitle, AudioAuthor author, Locale language, Locale originalLocale) {
-    if (language != null && originalLocale != null) {
-      String detectedBase = language.getTag().split("-")[0];
-      String originalBase = originalLocale.getTag().split("-")[0];
-      if (detectedBase.equals(originalBase)) return AudioVoiceType.ORIGINAL;
-    }
     if (streamTitle == null) {
+      if (language != null && originalLocale != null) {
+        String detectedBase = language.getTag().split("-")[0];
+        String originalBase = originalLocale.getTag().split("-")[0];
+        if (detectedBase.equals(originalBase)) return AudioVoiceType.ORIGINAL;
+      }
       if (author != null && DUB_AUTHORS.contains(author)) return AudioVoiceType.DUB;
       return null;
     }
     String t = streamTitle.toLowerCase();
     if (t.contains("commentary") || t.contains("комментари")) return AudioVoiceType.COMMENTARY;
+    if (language != null && originalLocale != null) {
+      String detectedBase = language.getTag().split("-")[0];
+      String originalBase = originalLocale.getTag().split("-")[0];
+      if (detectedBase.equals(originalBase)) return AudioVoiceType.ORIGINAL;
+    }
     if (t.contains("дубляж") || t.contains("дублированный") || DUB_REGEX.matcher(t).find()) return AudioVoiceType.DUB;
     if (MVO_REGEX.matcher(t).find() || t.contains("многоголосый")) return AudioVoiceType.MVO;
     if (DVO_REGEX.matcher(t).find() || t.contains("двухголосый")) return AudioVoiceType.DVO;
