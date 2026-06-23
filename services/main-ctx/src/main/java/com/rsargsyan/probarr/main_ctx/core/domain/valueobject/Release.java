@@ -140,7 +140,7 @@ public record Release(
    * languages, or both are commentary tracks). Positive means a1 is better.
    */
   public static Integer compareAudio(AudioTrack a1, AudioTrack a2) {
-    if (a1.voiceType() == AudioVoiceType.COMMENTARY || a2.voiceType() == AudioVoiceType.COMMENTARY) return null;
+    if ((a1.voiceType() == AudioVoiceType.COMMENTARY) != (a2.voiceType() == AudioVoiceType.COMMENTARY)) return null;
     if (!Objects.equals(a1.language(), a2.language())) return null;
 
     int voiceCmp = Integer.compare(voiceTypePriority(a1.voiceType()), voiceTypePriority(a2.voiceType()));
