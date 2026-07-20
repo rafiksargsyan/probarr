@@ -6,6 +6,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.TVShow;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.EpisodeNumberResolver;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.ReleaseTitleFilter;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.TitleLanguageParser;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Resolution;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.RipType;
@@ -78,12 +79,12 @@ public class TVShowScanTransactionService {
             )
         ));
 
-    log.info("Scanning '{}' ({} season(s), {} episode(s))",
-        tvShow.getOriginalTitle(), seasons.size(), allEpisodes.size());
+    String searchTitle = pickMostEnglishTitle(tvShow.getOriginalTitle(), tvShow.getNames(), tvShow.getOriginalLocale());
+    log.info("Scanning '{}' (search: '{}', {} season(s), {} episode(s))",
+        tvShow.getOriginalTitle(), searchTitle, seasons.size(), allEpisodes.size());
 
-    List<IndexerClient.IndexerRelease> releases = indexerClient.searchTvShowSeason(
-        tvShow.getOriginalTitle(), 0);
-    log.info("Got {} releases from indexer for '{}'", releases.size(), tvShow.getOriginalTitle());
+    List<IndexerClient.IndexerRelease> releases = indexerClient.searchTvShowSeason(searchTitle, 0);
+    log.info("Got {} releases from indexer for '{}'", releases.size(), searchTitle);
 
     List<String> showNames = tvShow.getNames();
     int added = 0;
@@ -198,10 +199,10 @@ public class TVShowScanTransactionService {
           .max().orElse(1);
     }
 
-    List<IndexerClient.IndexerRelease> releases = indexerClient.searchTvShowSeason(
-        tvShow.getOriginalTitle(), 0);
+    String searchTitle = pickMostEnglishTitle(tvShow.getOriginalTitle(), tvShow.getNames(), tvShow.getOriginalLocale());
+    List<IndexerClient.IndexerRelease> releases = indexerClient.searchTvShowSeason(searchTitle, 0);
     log.info("Got {} releases from indexer for episode [{}/S{}/E{}]",
-        releases.size(), tvShow.getOriginalTitle(), seasonNumber, episode.getEpisodeNumber());
+        releases.size(), searchTitle, seasonNumber, episode.getEpisodeNumber());
 
     int added = 0;
     for (IndexerClient.IndexerRelease r : releases) {
@@ -256,5 +257,22 @@ public class TVShowScanTransactionService {
     episode.onScanCompleted();
     episodeRepository.save(episode);
     log.info("Scan done for episode [{}]: added {} candidate(s)", episodeId, added);
+  }
+
+  private static String pickMostEnglishTitle(String original, List<String> alternatives, Locale locale) {
+    if (locale != null && locale.isEnglish()) return original;
+    List<String> candidates = new java.util.ArrayList<>();
+    candidates.add(original);
+    if (alternatives != null) candidates.addAll(alternatives);
+    return candidates.stream()
+        .filter(t -> t != null && !t.isBlank())
+        .max(java.util.Comparator.comparingDouble(TVShowScanTransactionService::englishLetterRatio))
+        .orElse(original);
+  }
+
+  private static double englishLetterRatio(String title) {
+    long ascii = title.chars().filter(c -> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')).count();
+    long nonSpace = title.chars().filter(c -> c != ' ').count();
+    return nonSpace == 0 ? 0 : (double) ascii / nonSpace;
   }
 }

@@ -5,6 +5,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.ReleaseTitleFilter;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.TitleLanguageParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Edition;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Resolution;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.RipType;
@@ -47,8 +48,9 @@ public class MovieScanTransactionService {
       return;
     }
 
-    log.info("Scanning movie '{}'", movie.getOriginalTitle());
-    List<IndexerClient.IndexerRelease> releases = indexerClient.searchMovies(movie.getOriginalTitle());
+    String searchTitle = pickMostEnglishTitle(movie.getOriginalTitle(), movie.getAlternativeTitles(), movie.getOriginalLocale());
+    log.info("Scanning movie '{}' (search: '{}')", movie.getOriginalTitle(), searchTitle);
+    List<IndexerClient.IndexerRelease> releases = indexerClient.searchMovies(searchTitle);
     log.info("Got {} releases from indexer for '{}'", releases.size(), movie.getOriginalTitle());
 
     List<ReleaseCandidate> candidates = buildCandidates(releases, movie);
@@ -168,5 +170,22 @@ public class MovieScanTransactionService {
     candidates.forEach(movie::addReleaseCandidate);
     movie.onScanCompleted();
     movieRepository.save(movie);
+  }
+
+  private static String pickMostEnglishTitle(String original, List<String> alternatives, Locale locale) {
+    if (locale != null && locale.isEnglish()) return original;
+    List<String> candidates = new java.util.ArrayList<>();
+    candidates.add(original);
+    if (alternatives != null) candidates.addAll(alternatives);
+    return candidates.stream()
+        .filter(t -> t != null && !t.isBlank())
+        .max(java.util.Comparator.comparingDouble(MovieScanTransactionService::englishLetterRatio))
+        .orElse(original);
+  }
+
+  private static double englishLetterRatio(String title) {
+    long ascii = title.chars().filter(c -> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')).count();
+    long nonSpace = title.chars().filter(c -> c != ' ').count();
+    return nonSpace == 0 ? 0 : (double) ascii / nonSpace;
   }
 }

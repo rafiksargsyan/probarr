@@ -82,6 +82,10 @@ public enum Locale {
     return tag;
   }
 
+  public boolean isEnglish() {
+    return tag.startsWith("en");
+  }
+
   @JsonCreator
   public static Locale fromString(String value) {
     if (value == null) return null;
