@@ -115,7 +115,11 @@ public record Release(
     }
 
     int audioSizeCmp = r1Unmatched.size() - r2Unmatched.size();
-    if (audioSizeCmp != 0) return audioSizeCmp;
+    if (audioSizeCmp != 0) {
+      if (audioSizeCmp < 0 && r1.resolution() == Resolution.UHD_4K && r2.resolution() != Resolution.UHD_4K) return null;
+      if (audioSizeCmp > 0 && r2.resolution() == Resolution.UHD_4K && r1.resolution() != Resolution.UHD_4K) return null;
+      return audioSizeCmp;
+    }
     return Boolean.compare(r1.edition() != null, r2.edition() != null);
   }
 
