@@ -1,3 +1,19 @@
+export interface AdminApiKey {
+  id: string;
+  key: string | null;
+  description: string | null;
+  disabled: boolean;
+  lastAccessTime: string | null;
+  createdAt: string;
+}
+
+export interface AdminProfile {
+  id: string;
+  externalId: string;
+  fullName: string | null;
+  createdAt: string;
+}
+
 export interface Page<T> {
   content: T[];
   totalElements: number;

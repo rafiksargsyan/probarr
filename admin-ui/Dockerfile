@@ -1,10 +1,10 @@
 FROM node:22-alpine AS builder
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild esbuild
 COPY . .
-RUN DOCKER_BUILD=1 pnpm run build
+RUN CI=true DOCKER_BUILD=1 pnpm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html

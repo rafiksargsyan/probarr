@@ -10,6 +10,7 @@ import { TVShowsPage } from '../pages/TVShowsPage';
 import { TVShowDetailPage } from '../pages/TVShowDetailPage';
 import { SeasonDetailPage } from '../pages/SeasonDetailPage';
 import { EpisodeDetailPage } from '../pages/EpisodeDetailPage';
+import { ApiKeysPage } from '../pages/ApiKeysPage';
 import { EmailConfirmation } from '../components/EmailConfirmation/EmailConfirmation';
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/tvshows/:id" element={<TVShowDetailPage />} />
             <Route path="/tvshows/:id/seasons/:seasonId" element={<SeasonDetailPage />} />
             <Route path="/tvshows/:id/episodes/:episodeId" element={<EpisodeDetailPage />} />
+            <Route path="/api-keys" element={<ApiKeysPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

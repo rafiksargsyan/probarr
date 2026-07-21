@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-admin-profile-api-key
+      author: rsargsyan
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              CREATE TABLE admin_profile (
+                  id BIGINT NOT NULL,
+                  version BIGINT NOT NULL DEFAULT 0,
+                  created_at TIMESTAMPTZ NOT NULL,
+                  updated_at TIMESTAMPTZ NOT NULL,
+                  external_id VARCHAR(255),
+                  full_name VARCHAR(127),
+                  PRIMARY KEY (id),
+                  UNIQUE (external_id)
+              );
+
+              CREATE TABLE admin_api_key (
+                  id BIGINT NOT NULL,
+                  version BIGINT NOT NULL DEFAULT 0,
+                  created_at TIMESTAMPTZ NOT NULL,
+                  updated_at TIMESTAMPTZ NOT NULL,
+                  admin_profile_id BIGINT NOT NULL,
+                  hashed_key VARCHAR(255) NOT NULL,
+                  disabled BOOLEAN NOT NULL DEFAULT FALSE,
+                  last_access_time TIMESTAMPTZ,
+                  description VARCHAR(127),
+                  PRIMARY KEY (id),
+                  CONSTRAINT fk_admin_api_key_profile FOREIGN KEY (admin_profile_id) REFERENCES admin_profile (id),
+                  UNIQUE (hashed_key)
+              );

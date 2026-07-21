@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.adapters.driving.controllers;
 
+import com.rsargsyan.probarr.main_ctx.core.exception.ApiKeyNotDisabledException;
 import com.rsargsyan.probarr.main_ctx.core.exception.AuthorizationException;
 import com.rsargsyan.probarr.main_ctx.core.exception.DomainException;
 import com.rsargsyan.probarr.main_ctx.core.exception.ResourceNotFoundException;
@@ -22,6 +23,12 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleNotFoundException(ResourceNotFoundException e) {
     return new ResponseEntity<>(new ErrorResponse(e.getClass().getSimpleName(), e.getMessage()),
         HttpStatus.NOT_FOUND);
+  }
+
+  @ExceptionHandler(ApiKeyNotDisabledException.class)
+  public ResponseEntity<ErrorResponse> handleApiKeyNotDisabledException(ApiKeyNotDisabledException e) {
+    return new ResponseEntity<>(new ErrorResponse(e.getClass().getSimpleName(), e.getMessage()),
+        HttpStatus.CONFLICT);
   }
 
   @ExceptionHandler(DomainException.class)
