@@ -47,44 +47,55 @@ public class TVShowEnrichmentTransactionService {
         .orElseThrow(() -> new IllegalArgumentException("TVShow not found: " + tvShowId));
 
     Long tmdbId = tvShow.getTmdbId();
-    if (tmdbId == null) return;
+    Long effectiveTvdbId = tvShow.getTvdbId();
 
-    log.info("Enriching TV show '{}' tmdbId={} useTvdb={}", tvShow.getOriginalTitle(), tmdbId, tvShow.isUseTvdb());
+    if (tmdbId == null && effectiveTvdbId == null) {
+      log.warn("TV show '{}' has neither tmdbId nor tvdbId, skipping enrichment", tvShow.getOriginalTitle());
+      return;
+    }
 
-    // Fetch external IDs from TMDB — always fetch imdbId, only fetch tvdbId if not already set
-    TmdbClient.TvShowExternalIds externalIds = tmdbClient.getTvShowExternalIds(tmdbId);
-    Long newTvdbId = (tvShow.getTvdbId() == null && externalIds != null) ? externalIds.tvdbId() : null;
-    String newImdbId = externalIds != null ? externalIds.imdbId() : null;
+    log.info("Enriching TV show '{}' tmdbId={} tvdbId={} useTvdb={}", tvShow.getOriginalTitle(), tmdbId, effectiveTvdbId, tvShow.isUseTvdb());
 
-    // Collect names and season numbers from TMDB in multiple languages
-    java.time.LocalDate firstAirDate = null;
-    List<Integer> tmdbSeasonNumbers = List.of();
-    for (String lang : TMDB_LANGUAGES) {
-      TmdbClient.TvShowDetails details = tmdbClient.getTvShowDetails(tmdbId, lang);
-      if (details == null) continue;
-      tvShow.addName(details.name());
-      if (firstAirDate == null) firstAirDate = details.firstAirDate();
-      if (tmdbSeasonNumbers.isEmpty() && details.seasonNumbers() != null) {
-        tmdbSeasonNumbers = details.seasonNumbers();
+    if (tmdbId != null) {
+      // Fetch external IDs from TMDB — always fetch imdbId, only fetch tvdbId if not already set
+      TmdbClient.TvShowExternalIds externalIds = tmdbClient.getTvShowExternalIds(tmdbId);
+      Long newTvdbId = (tvShow.getTvdbId() == null && externalIds != null) ? externalIds.tvdbId() : null;
+      String newImdbId = externalIds != null ? externalIds.imdbId() : null;
+      if (newTvdbId != null) effectiveTvdbId = newTvdbId;
+
+      // Collect names and season numbers from TMDB in multiple languages
+      java.time.LocalDate firstAirDate = null;
+      List<Integer> tmdbSeasonNumbers = List.of();
+      for (String lang : TMDB_LANGUAGES) {
+        TmdbClient.TvShowDetails details = tmdbClient.getTvShowDetails(tmdbId, lang);
+        if (details == null) continue;
+        tvShow.addName(details.name());
+        if (firstAirDate == null) firstAirDate = details.firstAirDate();
+        if (tmdbSeasonNumbers.isEmpty() && details.seasonNumbers() != null) {
+          tmdbSeasonNumbers = details.seasonNumbers();
+        }
       }
-    }
 
-    Long effectiveTvdbId = newTvdbId != null ? newTvdbId : tvShow.getTvdbId();
+      // Add names from TVDB translations if we have a TVDB ID
+      if (effectiveTvdbId != null) {
+        addNamesFromTvdb(tvShow, effectiveTvdbId);
+      }
 
-    // Add names from TVDB translations if we have a TVDB ID
-    if (effectiveTvdbId != null) {
-      addNamesFromTvdb(tvShow, effectiveTvdbId);
-    }
+      tvShow.enrichFromTmdb(firstAirDate, newImdbId, newTvdbId);
 
-    tvShow.enrichFromTmdb(firstAirDate, newImdbId, newTvdbId);
-
-    if (!tvShow.isUseTvdb()) {
-      syncSeasonsAndEpisodesFromTmdb(tvShow, tmdbId, tmdbSeasonNumbers);
-    } else if (effectiveTvdbId != null) {
-      syncSeasonsAndEpisodesFromTvdb(tvShow, effectiveTvdbId);
+      if (!tvShow.isUseTvdb()) {
+        syncSeasonsAndEpisodesFromTmdb(tvShow, tmdbId, tmdbSeasonNumbers);
+      } else if (effectiveTvdbId != null) {
+        syncSeasonsAndEpisodesFromTvdb(tvShow, effectiveTvdbId);
+      } else {
+        log.warn("TV show '{}' has useTvdb=true but no TVDB ID — skipping season/episode sync",
+            tvShow.getOriginalTitle());
+      }
     } else {
-      log.warn("TV show '{}' has useTvdb=true but no TVDB ID — skipping season/episode sync",
-          tvShow.getOriginalTitle());
+      // No TMDB ID — TVDB-only show
+      addNamesFromTvdb(tvShow, effectiveTvdbId);
+      tvShow.enrichFromTmdb(null, null, null);
+      syncSeasonsAndEpisodesFromTvdb(tvShow, effectiveTvdbId);
     }
 
     tvShowRepository.save(tvShow);

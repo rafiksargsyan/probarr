@@ -14,6 +14,6 @@ public interface TVShowRepository extends JpaRepository<TVShow, Long> {
   Optional<TVShow> findByTvdbId(Long tvdbId);
   Optional<TVShow> findByTmdbId(Long tmdbId);
 
-  @Query("SELECT t.id FROM TVShow t WHERE t.tmdbId IS NOT NULL AND (t.lastEnrichedAt IS NULL OR t.lastEnrichedAt < :threshold)")
+  @Query("SELECT t.id FROM TVShow t WHERE (t.tmdbId IS NOT NULL OR t.tvdbId IS NOT NULL) AND (t.lastEnrichedAt IS NULL OR t.lastEnrichedAt < :threshold)")
   List<Long> findIdsDueForEnrichment(@Param("threshold") Instant threshold);
 }
