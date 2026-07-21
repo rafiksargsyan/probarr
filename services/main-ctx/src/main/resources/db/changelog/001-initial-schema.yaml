@@ -1,0 +1,156 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-initial-schema
+      author: rsargsyan
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              CREATE TABLE account (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (id)
+              );
+
+              CREATE TABLE principal (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                external_id VARCHAR(255),
+                CONSTRAINT uq_principal_external_id UNIQUE (external_id),
+                PRIMARY KEY (id)
+              );
+
+              CREATE TABLE user_profile (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                account_id BIGINT NOT NULL,
+                principal_id BIGINT NOT NULL,
+                PRIMARY KEY (id),
+                CONSTRAINT fk_user_profile_account FOREIGN KEY (account_id) REFERENCES account (id),
+                CONSTRAINT fk_user_profile_principal FOREIGN KEY (principal_id) REFERENCES principal (id)
+              );
+
+              CREATE TABLE api_key (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                hashed_key VARCHAR(255) NOT NULL,
+                user_profile_id BIGINT NOT NULL,
+                disabled BOOLEAN NOT NULL DEFAULT FALSE,
+                last_access_time TIMESTAMPTZ,
+                description VARCHAR(127),
+                CONSTRAINT uq_api_key_hashed_key UNIQUE (hashed_key),
+                PRIMARY KEY (id),
+                CONSTRAINT fk_api_key_user_profile FOREIGN KEY (user_profile_id) REFERENCES user_profile (id)
+              );
+
+              CREATE TABLE tvshow (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                original_title VARCHAR(255) NOT NULL,
+                original_locale VARCHAR(20),
+                tmdb_id BIGINT,
+                imdb_id VARCHAR(255),
+                tvdb_id BIGINT,
+                release_date DATE,
+                use_tvdb BOOLEAN NOT NULL DEFAULT FALSE,
+                last_enriched_at TIMESTAMPTZ,
+                names JSONB,
+                CONSTRAINT uq_tvshow_tmdb_id UNIQUE (tmdb_id),
+                CONSTRAINT uq_tvshow_imdb_id UNIQUE (imdb_id),
+                CONSTRAINT uq_tvshow_tvdb_id UNIQUE (tvdb_id),
+                PRIMARY KEY (id)
+              );
+
+              CREATE TABLE season (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                tvshow_id BIGINT NOT NULL,
+                season_number INTEGER NOT NULL,
+                original_name VARCHAR(255),
+                air_date DATE,
+                tmdb_season_number INTEGER,
+                tvdb_season_number INTEGER,
+                PRIMARY KEY (id),
+                CONSTRAINT fk_season_tvshow FOREIGN KEY (tvshow_id) REFERENCES tvshow (id),
+                CONSTRAINT uq_season_tvshow_season_number UNIQUE (tvshow_id, season_number)
+              );
+
+              CREATE TABLE episode (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                tvshow_id BIGINT NOT NULL,
+                season_number INTEGER,
+                episode_number INTEGER,
+                absolute_number INTEGER,
+                air_date DATE,
+                runtime_seconds INTEGER,
+                scanning BOOLEAN NOT NULL DEFAULT FALSE,
+                scan_started_at TIMESTAMPTZ,
+                last_scan_at TIMESTAMPTZ,
+                release_candidates JSONB,
+                releases JSONB,
+                black_list JSONB,
+                white_list JSONB,
+                cool_down_list JSONB,
+                PRIMARY KEY (id),
+                CONSTRAINT fk_episode_tvshow FOREIGN KEY (tvshow_id) REFERENCES tvshow (id)
+              );
+
+              CREATE TABLE movie (
+                id BIGINT NOT NULL,
+                version BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                original_title VARCHAR(255) NOT NULL,
+                original_locale VARCHAR(20) NOT NULL,
+                release_date DATE,
+                runtime_minutes INTEGER,
+                tmdb_id BIGINT,
+                imdb_id VARCHAR(255),
+                alternative_titles JSONB,
+                alternative_release_years JSONB,
+                black_list JSONB,
+                white_list JSONB,
+                cool_down_list JSONB,
+                release_candidates JSONB,
+                releases JSONB,
+                last_scan_at TIMESTAMPTZ,
+                last_enriched_at TIMESTAMPTZ,
+                force_scan BOOLEAN NOT NULL DEFAULT FALSE,
+                scanning BOOLEAN NOT NULL DEFAULT FALSE,
+                scan_started_at TIMESTAMPTZ,
+                CONSTRAINT uq_movie_tmdb_id UNIQUE (tmdb_id),
+                CONSTRAINT uq_movie_imdb_id UNIQUE (imdb_id),
+                PRIMARY KEY (id)
+              );
+
+              CREATE TABLE scheduled_tasks (
+                task_name TEXT NOT NULL,
+                task_instance TEXT NOT NULL,
+                task_data BYTEA,
+                execution_time TIMESTAMPTZ NOT NULL,
+                picked BOOLEAN NOT NULL,
+                picked_by TEXT,
+                last_success TIMESTAMPTZ,
+                last_failure TIMESTAMPTZ,
+                consecutive_failures INTEGER,
+                last_failure_cause TEXT,
+                last_heartbeat TIMESTAMPTZ,
+                version BIGINT NOT NULL,
+                PRIMARY KEY (task_name, task_instance)
+              );
