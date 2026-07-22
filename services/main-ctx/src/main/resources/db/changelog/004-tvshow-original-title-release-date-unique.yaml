@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-tvshow-original-title-release-date-unique
+      author: rsargsyan
+      changes:
+        - sql:
+            sql: ALTER TABLE tvshow ADD CONSTRAINT uq_tvshow_original_title_release_date UNIQUE (original_title, release_date);
