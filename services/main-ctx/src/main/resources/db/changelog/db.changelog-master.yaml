@@ -5,3 +5,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/002-admin-profile-api-key.yaml
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/003-movie-name-release-date-unique.yaml
+      relativeToChangelogFile: false
