@@ -4,4 +4,4 @@ databaseChangeLog:
       author: rsargsyan
       changes:
         - sql:
-            sql: ALTER TABLE movie ADD CONSTRAINT uq_movie_name_release_date UNIQUE (name, release_date);
+            sql: ALTER TABLE movie ADD CONSTRAINT uq_movie_original_title_release_date UNIQUE (original_title, release_date);

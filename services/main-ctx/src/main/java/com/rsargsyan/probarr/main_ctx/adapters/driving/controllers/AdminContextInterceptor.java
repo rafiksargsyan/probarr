@@ -33,7 +33,7 @@ public class AdminContextInterceptor implements HandlerInterceptor {
 
     if (auth instanceof AdminApiKeyAuthentication adminKeyAuth) {
       String apiKeyId = adminKeyAuth.getApiKeyId();
-      AdminApiKey adminApiKey = adminApiKeyRepository.findById(TSID.from(apiKeyId).toLong())
+      AdminApiKey adminApiKey = adminApiKeyRepository.findByIdWithProfile(TSID.from(apiKeyId).toLong())
           .orElseThrow(ResourceNotFoundException::new);
       AdminProfile adminProfile = adminApiKey.getAdminProfile();
       adminApiKey.markAccessed();
