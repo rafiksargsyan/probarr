@@ -18,7 +18,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getTVShow, listSeasons } from '../api/tvshows';
+import { getTVShow, listSeasons, clearEpisodeBlackList, clearEpisodeCoolDown } from '../api/tvshows';
 import type { Season, TVShow } from '../types';
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -46,6 +46,8 @@ export function TVShowDetailPage() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearing, setClearing] = useState<'blacklist' | 'cooldown' | null>(null);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -58,6 +60,20 @@ export function TVShowDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [user, id]);
+
+  async function handleClear(type: 'blacklist' | 'cooldown') {
+    if (!user || !id) return;
+    setClearing(type);
+    setClearError(null);
+    try {
+      if (type === 'blacklist') await clearEpisodeBlackList(user, id);
+      else await clearEpisodeCoolDown(user, id);
+    } catch (e: unknown) {
+      setClearError(e instanceof Error ? e.message : 'Operation failed');
+    } finally {
+      setClearing(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -108,6 +124,27 @@ export function TVShowDetailPage() {
           />
           <DetailRow label="Last Enriched" value={formatDate(tvShow.lastEnrichedAt)} />
           <DetailRow label="Created At" value={formatDate(tvShow.createdAt)} />
+          {clearError && <Alert severity="error" sx={{ mt: 2 }}>{clearError}</Alert>}
+          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+            <Button
+              size="small"
+              color="warning"
+              variant="outlined"
+              disabled={!!clearing}
+              onClick={() => handleClear('blacklist')}
+            >
+              {clearing === 'blacklist' ? <CircularProgress size={16} /> : 'Clear Blacklist'}
+            </Button>
+            <Button
+              size="small"
+              color="warning"
+              variant="outlined"
+              disabled={!!clearing}
+              onClick={() => handleClear('cooldown')}
+            >
+              {clearing === 'cooldown' ? <CircularProgress size={16} /> : 'Clear Cooldown'}
+            </Button>
+          </Box>
         </Paper>
       </Box>
 

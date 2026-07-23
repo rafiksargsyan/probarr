@@ -17,7 +17,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { listSeasons, listEpisodes } from '../api/tvshows';
+import { listSeasons, listEpisodes, clearEpisodeBlackList, clearEpisodeCoolDown } from '../api/tvshows';
 import type { Season, Episode } from '../types';
 
 function formatRuntime(seconds: number | null): string {
@@ -35,6 +35,8 @@ export function SeasonDetailPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearing, setClearing] = useState<'blacklist' | 'cooldown' | null>(null);
 
   useEffect(() => {
     if (!user || !tvShowId || !seasonId) return;
@@ -52,6 +54,20 @@ export function SeasonDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [user, tvShowId, seasonId]);
+
+  async function handleClear(type: 'blacklist' | 'cooldown') {
+    if (!user || !tvShowId || !season) return;
+    setClearing(type);
+    setClearError(null);
+    try {
+      if (type === 'blacklist') await clearEpisodeBlackList(user, tvShowId, season.seasonNumber);
+      else await clearEpisodeCoolDown(user, tvShowId, season.seasonNumber);
+    } catch (e: unknown) {
+      setClearError(e instanceof Error ? e.message : 'Operation failed');
+    } finally {
+      setClearing(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -105,6 +121,28 @@ export function SeasonDetailPage() {
           </Box>
         ))}
       </Paper>
+
+      {clearError && <Alert severity="error" sx={{ mb: 2 }}>{clearError}</Alert>}
+      <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+        <Button
+          size="small"
+          color="warning"
+          variant="outlined"
+          disabled={!!clearing}
+          onClick={() => handleClear('blacklist')}
+        >
+          {clearing === 'blacklist' ? <CircularProgress size={16} /> : 'Clear Blacklist'}
+        </Button>
+        <Button
+          size="small"
+          color="warning"
+          variant="outlined"
+          disabled={!!clearing}
+          onClick={() => handleClear('cooldown')}
+        >
+          {clearing === 'cooldown' ? <CircularProgress size={16} /> : 'Clear Cooldown'}
+        </Button>
+      </Box>
 
       <Typography variant="h6" fontWeight="bold" gutterBottom>
         Episodes

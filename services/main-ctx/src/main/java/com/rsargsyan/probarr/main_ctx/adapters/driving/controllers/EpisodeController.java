@@ -91,4 +91,18 @@ public class EpisodeController {
                                                        @PathVariable String infoHash) {
     return ResponseEntity.ok(episodeService.removeFromCoolDown(tvShowId, id, infoHash));
   }
+
+  @DeleteMapping("/blacklist")
+  public ResponseEntity<Void> clearBlackList(@PathVariable String tvShowId,
+                                             @RequestParam(required = false) Integer season) {
+    episodeService.clearBlackList(tvShowId, season);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping("/cooldown")
+  public ResponseEntity<Void> clearCoolDown(@PathVariable String tvShowId,
+                                            @RequestParam(required = false) Integer season) {
+    episodeService.clearCoolDown(tvShowId, season);
+    return ResponseEntity.noContent().build();
+  }
 }

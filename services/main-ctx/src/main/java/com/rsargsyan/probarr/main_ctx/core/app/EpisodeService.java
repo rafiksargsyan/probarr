@@ -168,4 +168,24 @@ public class EpisodeService {
     episodeRepository.save(episode);
     return EpisodeDTO.from(episode);
   }
+
+  @Transactional
+  public void clearBlackList(String tvShowIdStr, Integer seasonNumber) {
+    Long tvShowId = Util.validateTSID(tvShowIdStr);
+    List<Episode> episodes = seasonNumber != null
+        ? episodeRepository.findByTvShowIdAndSeasonNumber(tvShowId, seasonNumber)
+        : episodeRepository.findByTvShowId(tvShowId);
+    episodes.forEach(Episode::clearBlackList);
+    episodeRepository.saveAll(episodes);
+  }
+
+  @Transactional
+  public void clearCoolDown(String tvShowIdStr, Integer seasonNumber) {
+    Long tvShowId = Util.validateTSID(tvShowIdStr);
+    List<Episode> episodes = seasonNumber != null
+        ? episodeRepository.findByTvShowIdAndSeasonNumber(tvShowId, seasonNumber)
+        : episodeRepository.findByTvShowId(tvShowId);
+    episodes.forEach(Episode::clearCoolDown);
+    episodeRepository.saveAll(episodes);
+  }
 }

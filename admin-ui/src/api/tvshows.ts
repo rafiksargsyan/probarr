@@ -67,3 +67,11 @@ export function addToEpisodeCoolDown(user: User, tvShowId: string, episodeId: st
 export function removeFromEpisodeCoolDown(user: User, tvShowId: string, episodeId: string, infoHash: string): Promise<Episode> {
   return apiRequest(`/tvshow/${tvShowId}/episode/${episodeId}/cooldown/${infoHash}`, user, { method: 'DELETE' });
 }
+export function clearEpisodeBlackList(user: User, tvShowId: string, season?: number): Promise<void> {
+  const q = season != null ? `?season=${season}` : '';
+  return apiRequest(`/tvshow/${tvShowId}/episode/blacklist${q}`, user, { method: 'DELETE' });
+}
+export function clearEpisodeCoolDown(user: User, tvShowId: string, season?: number): Promise<void> {
+  const q = season != null ? `?season=${season}` : '';
+  return apiRequest(`/tvshow/${tvShowId}/episode/cooldown${q}`, user, { method: 'DELETE' });
+}

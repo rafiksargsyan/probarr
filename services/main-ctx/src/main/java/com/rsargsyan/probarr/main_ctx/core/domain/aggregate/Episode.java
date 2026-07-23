@@ -242,4 +242,14 @@ public class Episode extends AggregateRoot {
     this.releaseCandidates = new ArrayList<>();
     touch();
   }
+
+  public void clearBlackList() {
+    this.blackList = new ArrayList<>();
+    touch();
+  }
+
+  public void clearCoolDown() {
+    this.coolDownList = new ArrayList<>();
+    touch();
+  }
 }
