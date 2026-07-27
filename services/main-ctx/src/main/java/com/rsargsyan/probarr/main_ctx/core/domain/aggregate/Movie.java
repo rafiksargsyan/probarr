@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.aggregate;
 
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AddReleaseResult;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistEntry;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
@@ -276,20 +277,20 @@ public class Movie extends AggregateRoot {
    * replace, coexist with, or be rejected in favour of existing releases.
    * Returns true if the release was accepted.
    */
-  public boolean addRelease(Release newRelease) {
+  public AddReleaseResult addRelease(Release newRelease) {
     List<Release> toReplace = new ArrayList<>();
     for (Release existing : releases) {
       Integer cmp = Release.compare(existing, newRelease);
       if (cmp == null) continue;
-      if (cmp > 0) return false; // existing is strictly better — reject
+      if (cmp > 0) return AddReleaseResult.REJECTED; // existing is strictly better — reject
       if (cmp == 0) {
-        if (existing.infoHash().equals(newRelease.infoHash())) return false;
-        if (Release.compare2(existing, newRelease) >= 0) return false; // existing wins tiebreaker
+        if (existing.infoHash().equals(newRelease.infoHash())) return AddReleaseResult.REJECTED;
+        if (Release.compare2(existing, newRelease) >= 0) return AddReleaseResult.REJECTED; // existing wins tiebreaker
         List<String> replaced = collectReplacedHashes(List.of(existing));
         releases.remove(existing);
         releases.add(newRelease.withReplacedInfoHashes(replaced));
         touch();
-        return true;
+        return new AddReleaseResult(true, List.of(existing));
       }
       toReplace.add(existing); // new is better — mark for replacement
     }
@@ -301,7 +302,7 @@ public class Movie extends AggregateRoot {
       releases.add(newRelease);
     }
     touch();
-    return true;
+    return new AddReleaseResult(true, toReplace);
   }
 
   private static List<String> collectReplacedHashes(List<Release> replaced) {

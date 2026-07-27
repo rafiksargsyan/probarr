@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.domain.aggregate;
 
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AddReleaseResult;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistEntry;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
@@ -125,20 +126,20 @@ public class Episode extends AggregateRoot {
     }
   }
 
-  public boolean addRelease(Release newRelease) {
+  public AddReleaseResult addRelease(Release newRelease) {
     List<Release> toReplace = new ArrayList<>();
     for (Release existing : releases) {
       Integer cmp = Release.compare(existing, newRelease);
       if (cmp == null) continue;
-      if (cmp > 0) return false;
+      if (cmp > 0) return AddReleaseResult.REJECTED;
       if (cmp == 0) {
-        if (existing.infoHash().equals(newRelease.infoHash())) return false;
-        if (Release.compare2(existing, newRelease) >= 0) return false;
+        if (existing.infoHash().equals(newRelease.infoHash())) return AddReleaseResult.REJECTED;
+        if (Release.compare2(existing, newRelease) >= 0) return AddReleaseResult.REJECTED;
         List<String> replaced = collectReplacedHashes(List.of(existing));
         releases.remove(existing);
         releases.add(newRelease.withReplacedInfoHashes(replaced));
         touch();
-        return true;
+        return new AddReleaseResult(true, List.of(existing));
       }
       toReplace.add(existing);
     }
@@ -150,7 +151,7 @@ public class Episode extends AggregateRoot {
       releases.add(newRelease);
     }
     touch();
-    return true;
+    return new AddReleaseResult(true, toReplace);
   }
 
   private static List<String> collectReplacedHashes(List<Release> replaced) {

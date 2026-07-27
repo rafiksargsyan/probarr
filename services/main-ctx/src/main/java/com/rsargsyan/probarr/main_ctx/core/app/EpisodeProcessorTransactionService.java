@@ -9,6 +9,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.AudioAuthorParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.AudioVoiceTypeParser;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.SubsAuthorParser;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AddReleaseResult;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.BlacklistReason;
@@ -406,10 +407,13 @@ public class EpisodeProcessorTransactionService {
           fileStatus.fileSizeBytes(), rc.resolution(), width, height, rc.ripType(), null,
           runtimeSeconds, audioTracks, subtitleTracks, Instant.now(), torrentSource, mediaFile.index(), null);
 
-      boolean accepted = episode.addRelease(release);
+      AddReleaseResult result = episode.addRelease(release);
       log.info("Release for episode '{}' rc={}: {}", episodeLabel(episode), rc.infoHash(),
-          accepted ? "accepted" : "rejected by comparison");
-      return accepted;
+          result.accepted() ? "accepted" : "rejected by comparison");
+      for (Release replaced : result.replacedReleases()) {
+        unclaimReplacedRelease(replaced);
+      }
+      return result.accepted();
 
     } catch (Exception e) {
       log.error("processMediaFile failed for rc={}: {}", rc.infoHash(), e.getMessage());
@@ -593,6 +597,18 @@ public class EpisodeProcessorTransactionService {
       grabberrClient.unclaimFile(torrentDownloadId, fileIndex);
     } catch (Exception e) {
       log.error("Failed to unclaim file for rc={}: {}", infoHash, e.getMessage());
+    }
+  }
+
+  private void unclaimReplacedRelease(Release replaced) {
+    try {
+      grabberrClient.findByInfoHash(replaced.infoHash())
+          .ifPresentOrElse(
+              torrent -> unclaimFileQuietly(torrent.id(), replaced.fileIndex(), replaced.infoHash()),
+              () -> log.warn("No grabberr torrent found for replaced release rc={}, cannot unclaim",
+                  replaced.infoHash()));
+    } catch (Exception e) {
+      log.error("Failed to resolve grabberr torrent for replaced release rc={}: {}", replaced.infoHash(), e.getMessage());
     }
   }
 
