@@ -64,15 +64,15 @@ public final class EpisodeNumberResolver {
       return List.of();
     }
 
-    // Episode range: S01E01-08 or S01E01 16
-    Pattern episodeRange = Pattern.compile(String.format("s0*%d\\s*e([0-9]+)[-\\s]+([0-9]+)", seasonNumber));
+    // Episode range: S01E01-08
+    Pattern episodeRange = Pattern.compile(String.format("s0*%d\\s*e([0-9]+)\\s*-\\s*([0-9]+)", seasonNumber));
     Matcher rangeEp = episodeRange.matcher(titleLC);
     if (rangeEp.find()) {
       int startEp = Integer.parseInt(rangeEp.group(1));
-      int endEp = Math.min(Integer.parseInt(rangeEp.group(2)), maxEpisodeNumber);
-      if (startEp <= endEp) {
+      int rawEndEp = Integer.parseInt(rangeEp.group(2));
+      if (startEp <= rawEndEp && rawEndEp <= maxEpisodeNumber) {
         List<Integer> result = new ArrayList<>();
-        for (int i = startEp; i <= endEp; i++) result.add(i);
+        for (int i = startEp; i <= rawEndEp; i++) result.add(i);
         return result;
       }
     }
