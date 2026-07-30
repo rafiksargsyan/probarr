@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.app.dto;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Movie;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.AudioTrack;
 import com.rsargsyan.probarr.main_ctx.core.domain.localentity.SubtitleTrack;
+import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.AudioVoiceType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
@@ -67,9 +68,9 @@ public record ClientMovieDTO(
     }
   }
 
-  public record ClientAudioTrackDTO(int streamIndex, Locale language, Integer channels) {
+  public record ClientAudioTrackDTO(int streamIndex, Locale language, Integer channels, boolean commentary) {
     public static ClientAudioTrackDTO from(AudioTrack t) {
-      return new ClientAudioTrackDTO(t.streamIndex(), t.language(), t.channels());
+      return new ClientAudioTrackDTO(t.streamIndex(), t.language(), t.channels(), t.voiceType() == AudioVoiceType.COMMENTARY);
     }
   }
 
