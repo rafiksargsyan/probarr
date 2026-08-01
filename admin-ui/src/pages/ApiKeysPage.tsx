@@ -24,7 +24,6 @@ import AddIcon from '@mui/icons-material/Add';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useAuth } from '../hooks/useAuth';
 import {
-  signup,
   listAdminApiKeys,
   createAdminApiKey,
   disableAdminApiKey,
@@ -72,14 +71,8 @@ export function ApiKeysPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    signup(user)
-      .then(() => load())
-      .catch((e: Error) => {
-        setError(e.message);
-        setLoading(false);
-      });
-  }, [user, load]);
+    load();
+  }, [load]);
 
   const activeCount = keys.filter((k) => !k.disabled).length;
   const atLimit = activeCount >= MAX_ACTIVE_KEYS;
