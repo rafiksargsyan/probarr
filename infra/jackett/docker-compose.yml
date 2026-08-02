@@ -19,6 +19,7 @@ services:
       - DNS_ADDRESS=8.8.8.8  
     ports:
       - "${JACKETT_PORT:-9117}:9117"
+      - "127.0.0.1:8191:8191"
     restart: unless-stopped
       
   jackett:
@@ -34,6 +35,16 @@ services:
     depends_on:
       - gluetun
     restart: unless-stopped
+
+  flaresolverr:
+      image: ghcr.io/flaresolverr/flaresolverr:latest
+      container_name: flaresolverr
+      network_mode: "service:gluetun"
+      environment:
+        LOG_LEVEL: info
+      depends_on:
+        - gluetun
+      restart: unless-stopped
 
 volumes:
   jackett-config:
