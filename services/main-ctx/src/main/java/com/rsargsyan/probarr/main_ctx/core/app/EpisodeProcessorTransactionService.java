@@ -33,6 +33,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -64,6 +65,7 @@ public class EpisodeProcessorTransactionService {
     this.config = config;
     this.httpClient = HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NEVER)
+        .connectTimeout(Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds))
         .build();
   }
 
@@ -561,6 +563,7 @@ public class EpisodeProcessorTransactionService {
   private String resolveRedirectToMagnet(String downloadUrl) throws IOException, InterruptedException {
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(downloadUrl))
+        .timeout(Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds))
         .GET()
         .build();
     HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
@@ -574,6 +577,7 @@ public class EpisodeProcessorTransactionService {
   private byte[] fetchTorrentBytes(String downloadUrl) throws IOException, InterruptedException {
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(downloadUrl))
+        .timeout(Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds))
         .GET()
         .build();
     HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
