@@ -22,6 +22,9 @@ export function createTVShow(
 ): Promise<TVShow> {
   return apiRequest('/tvshow', user, { method: 'POST', body: JSON.stringify(body) });
 }
+export function addTVShowName(user: User, tvShowId: string, name: string): Promise<TVShow> {
+  return apiRequest(`/tvshow/${tvShowId}/name?name=${encodeURIComponent(name)}`, user, { method: 'POST' });
+}
 export function listSeasons(user: User, tvShowId: string): Promise<Season[]> {
   return apiRequest(`/tvshow/${tvShowId}/season`, user);
 }

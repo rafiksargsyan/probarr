@@ -36,4 +36,9 @@ public class TVShowController {
   public ResponseEntity<TVShowDTO> createTVShow(@RequestBody TVShowCreationDTO dto) {
     return new ResponseEntity<>(tvShowService.createTVShow(dto), HttpStatus.CREATED);
   }
+
+  @PostMapping("/{id}/name")
+  public ResponseEntity<TVShowDTO> addName(@PathVariable String id, @RequestParam String name) {
+    return ResponseEntity.ok(tvShowService.addName(id, name));
+  }
 }

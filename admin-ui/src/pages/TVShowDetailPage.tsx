@@ -7,18 +7,20 @@ import {
   CircularProgress,
   Divider,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { getTVShow, listSeasons, clearEpisodeBlackList, clearEpisodeCoolDown } from '../api/tvshows';
+import { getTVShow, listSeasons, clearEpisodeBlackList, clearEpisodeCoolDown, addTVShowName } from '../api/tvshows';
 import type { Season, TVShow } from '../types';
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -48,6 +50,9 @@ export function TVShowDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const [clearing, setClearing] = useState<'blacklist' | 'cooldown' | null>(null);
+  const [newName, setNewName] = useState('');
+  const [addingName, setAddingName] = useState(false);
+  const [addNameError, setAddNameError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -72,6 +77,22 @@ export function TVShowDetailPage() {
       setClearError(e instanceof Error ? e.message : 'Operation failed');
     } finally {
       setClearing(null);
+    }
+  }
+
+  async function handleAddName() {
+    const name = newName.trim();
+    if (!user || !id || !name) return;
+    setAddingName(true);
+    setAddNameError(null);
+    try {
+      const updated = await addTVShowName(user, id, name);
+      setTVShow(updated);
+      setNewName('');
+    } catch (e: unknown) {
+      setAddNameError(e instanceof Error ? e.message : 'Failed to add name');
+    } finally {
+      setAddingName(false);
     }
   }
 
@@ -124,6 +145,40 @@ export function TVShowDetailPage() {
           />
           <DetailRow label="Last Enriched" value={formatDate(tvShow.lastEnrichedAt)} />
           <DetailRow label="Created At" value={formatDate(tvShow.createdAt)} />
+          <DetailRow
+            label="Alternative Names"
+            value={
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                {tvShow.names.length === 0 && (
+                  <Typography sx={{ fontSize: 14 }}>—</Typography>
+                )}
+                {tvShow.names.map((n) => (
+                  <Chip key={n} label={n} size="small" />
+                ))}
+              </Stack>
+            }
+          />
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'flex-start' }}>
+            <TextField
+              size="small"
+              placeholder="Add alternative name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddName();
+              }}
+              disabled={addingName}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={addingName || !newName.trim()}
+              onClick={handleAddName}
+            >
+              {addingName ? <CircularProgress size={16} /> : 'Add Name'}
+            </Button>
+          </Box>
+          {addNameError && <Alert severity="error" sx={{ mt: 1 }}>{addNameError}</Alert>}
           {clearError && <Alert severity="error" sx={{ mt: 2 }}>{clearError}</Alert>}
           <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
             <Button

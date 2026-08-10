@@ -152,6 +152,7 @@ export interface TVShow {
   useTvdb: boolean;
   lastEnrichedAt: string | null;
   createdAt: string;
+  names: string[];
 }
 
 export interface Season {

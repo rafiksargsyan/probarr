@@ -63,6 +63,14 @@ public class TVShowScanTransactionService {
     }
 
     // Group episodes by season number for fast lookup, skipping those already in progress or done
+    for (Episode e : allEpisodes) {
+      if (e.getSeasonNumber() == null) {
+        log.info("Excluding episode id={} from this scan: no season number", e.getId());
+      } else if (!e.getReleaseCandidates().isEmpty()) {
+        log.info("Excluding episode S{}E{} from this scan: already has {} pending candidate(s)",
+            e.getSeasonNumber(), e.getEpisodeNumber(), e.getReleaseCandidates().size());
+      }
+    }
     Map<Integer, List<Episode>> episodesBySeason = allEpisodes.stream()
         .filter(e -> e.getSeasonNumber() != null)
         .filter(e -> e.getReleaseCandidates().isEmpty())
@@ -91,26 +99,38 @@ public class TVShowScanTransactionService {
 
     for (IndexerClient.IndexerRelease r : releases) {
       try {
-        if (r.infoHash() == null || r.infoHash().isBlank()) continue;
-        if (r.seeders() == null || r.seeders() <= 0) continue;
+        if (r.infoHash() == null || r.infoHash().isBlank()) {
+          log.info("Skipping '{}': no infoHash", r.title());
+          continue;
+        }
+        if (r.seeders() == null || r.seeders() <= 0) {
+          log.info("Skipping '{}': no seeders", r.title());
+          continue;
+        }
 
         RipType ripType = RipType.fromTitle(r.title());
-        if (ripType == null) continue;
+        if (ripType == null) {
+          log.info("Skipping '{}': unrecognized rip type", r.title());
+          continue;
+        }
 
         Resolution resolution = Resolution.fromTitle(r.title());
         if (resolution == null) {
           if (ripType.isLowQuality()) resolution = Resolution.SD;
-          else continue;
+          else {
+            log.info("Skipping '{}': unrecognized resolution", r.title());
+            continue;
+          }
         }
 
         String rejection = ReleaseTitleFilter.reject(r.title(), r.sizeInBytes());
         if (rejection != null) {
-          log.debug("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
+          log.info("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
           continue;
         }
         if (tvShow.getReleaseDate() != null && r.publishDate() != null
             && r.publishDate().isBefore(tvShow.getReleaseDate().atStartOfDay().toInstant(java.time.ZoneOffset.UTC))) {
-          log.debug("Skipping '{}': published {} before show release {}", r.title(), r.publishDate(), tvShow.getReleaseDate());
+          log.info("Skipping '{}': published {} before show release {}", r.title(), r.publishDate(), tvShow.getReleaseDate());
           continue;
         }
 
@@ -132,7 +152,11 @@ public class TVShowScanTransactionService {
         for (Season season : seasons) {
           int seasonNumber = season.getSeasonNumber();
           List<Episode> episodes = episodesBySeason.get(seasonNumber);
-          if (episodes == null || episodes.isEmpty()) continue;
+          if (episodes == null || episodes.isEmpty()) {
+            log.info("Skipping '{}' for season {}: no eligible episodes (none exist, or all already have candidates)",
+                r.title(), seasonNumber);
+            continue;
+          }
 
           int maxEpisodeNumber = maxEpBySeason.getOrDefault(seasonNumber, 1);
           List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
@@ -140,19 +164,26 @@ public class TVShowScanTransactionService {
 
           if (episodeNumbers == null) {
             for (Episode ep : episodes) {
-              if (!ep.isBlacklisted(r.infoHash())) {
+              if (ep.isBlacklisted(r.infoHash())) {
+                log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, ep.getEpisodeNumber());
+              } else {
                 ep.addReleaseCandidate(candidate);
                 added++;
               }
             }
-          } else if (!episodeNumbers.isEmpty()) {
+          } else if (episodeNumbers.isEmpty()) {
+            log.info("Skipping '{}' for season {}: parsed episode range didn't match any known episode (maxEpisodeNumber={})",
+                r.title(), seasonNumber, maxEpisodeNumber);
+          } else {
             for (int epNum : episodeNumbers) {
-              episodes.stream()
-                  .filter(e -> epNum == e.getEpisodeNumber())
-                  .findFirst()
-                  .ifPresent(ep -> {
-                    if (!ep.isBlacklisted(r.infoHash())) ep.addReleaseCandidate(candidate);
-                  });
+              Episode ep = episodes.stream().filter(e -> epNum == e.getEpisodeNumber()).findFirst().orElse(null);
+              if (ep == null) {
+                log.info("Skipping '{}' for episode S{}E{}: no matching episode entity", r.title(), seasonNumber, epNum);
+              } else if (ep.isBlacklisted(r.infoHash())) {
+                log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, epNum);
+              } else {
+                ep.addReleaseCandidate(candidate);
+              }
             }
             added++;
           }
@@ -207,23 +238,39 @@ public class TVShowScanTransactionService {
     int added = 0;
     for (IndexerClient.IndexerRelease r : releases) {
       try {
-        if (r.infoHash() == null || r.infoHash().isBlank()) continue;
-        if (r.seeders() == null || r.seeders() <= 0) continue;
+        if (r.infoHash() == null || r.infoHash().isBlank()) {
+          log.info("Skipping '{}': no infoHash", r.title());
+          continue;
+        }
+        if (r.seeders() == null || r.seeders() <= 0) {
+          log.info("Skipping '{}': no seeders", r.title());
+          continue;
+        }
 
         RipType ripType = RipType.fromTitle(r.title());
-        if (ripType == null) continue;
+        if (ripType == null) {
+          log.info("Skipping '{}': unrecognized rip type", r.title());
+          continue;
+        }
 
         Resolution resolution = Resolution.fromTitle(r.title());
         if (resolution == null) {
           if (ripType.isLowQuality()) resolution = Resolution.SD;
-          else continue;
+          else {
+            log.info("Skipping '{}': unrecognized resolution", r.title());
+            continue;
+          }
         }
 
         String rejection = ReleaseTitleFilter.reject(r.title(), r.sizeInBytes());
-        if (rejection != null) continue;
+        if (rejection != null) {
+          log.info("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
+          continue;
+        }
 
         if (tvShow.getReleaseDate() != null && r.publishDate() != null
             && r.publishDate().isBefore(tvShow.getReleaseDate().atStartOfDay().toInstant(java.time.ZoneOffset.UTC))) {
+          log.info("Skipping '{}': published {} before show release {}", r.title(), r.publishDate(), tvShow.getReleaseDate());
           continue;
         }
 
@@ -234,20 +281,30 @@ public class TVShowScanTransactionService {
             r.publishDate(), TitleLanguageParser.parse(r.title()), r.title()
         );
 
-        if (seasonNumber != null) {
-          List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
-              r.title(), seasonNumber, showNames, maxEp);
-          if (episodeNumbers == null) {
-            if (!episode.isBlacklisted(r.infoHash())) {
-              episode.addReleaseCandidate(candidate);
-              added++;
-            }
-          } else if (episode.getEpisodeNumber() != null && episodeNumbers.contains(episode.getEpisodeNumber())) {
-            if (!episode.isBlacklisted(r.infoHash())) {
-              episode.addReleaseCandidate(candidate);
-              added++;
-            }
+        if (seasonNumber == null) {
+          log.info("Skipping '{}' for episode id={}: episode has no season number", r.title(), episode.getId());
+          continue;
+        }
+
+        List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
+            r.title(), seasonNumber, showNames, maxEp);
+        if (episodeNumbers == null) {
+          if (episode.isBlacklisted(r.infoHash())) {
+            log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, episode.getEpisodeNumber());
+          } else {
+            episode.addReleaseCandidate(candidate);
+            added++;
           }
+        } else if (episode.getEpisodeNumber() != null && episodeNumbers.contains(episode.getEpisodeNumber())) {
+          if (episode.isBlacklisted(r.infoHash())) {
+            log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, episode.getEpisodeNumber());
+          } else {
+            episode.addReleaseCandidate(candidate);
+            added++;
+          }
+        } else {
+          log.info("Skipping '{}' for episode S{}E{}: parsed episode range {} doesn't include this episode",
+              r.title(), seasonNumber, episode.getEpisodeNumber(), episodeNumbers);
         }
       } catch (Exception e) {
         log.warn("Skipping release '{}': {}", r.title(), e.getMessage());

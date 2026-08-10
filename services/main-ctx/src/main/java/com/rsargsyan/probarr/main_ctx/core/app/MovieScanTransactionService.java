@@ -66,42 +66,42 @@ public class MovieScanTransactionService {
     for (IndexerClient.IndexerRelease r : releases) {
       try {
         if (r.infoHash() == null || r.infoHash().isBlank()) {
-          log.debug("Skipping '{}': no infoHash", r.title());
+          log.info("Skipping '{}': no infoHash", r.title());
           continue;
         }
         if (r.seeders() == null || r.seeders() <= 0) {
-          log.debug("Skipping '{}': no seeders", r.title());
+          log.info("Skipping '{}': no seeders", r.title());
           continue;
         }
         if (blackList.contains(r.infoHash())) {
-          log.debug("Skipping '{}': blacklisted", r.title());
+          log.info("Skipping '{}': blacklisted", r.title());
           continue;
         }
         if (whiteList.contains(r.infoHash())) {
-          log.debug("Skipping '{}': already whitelisted", r.title());
+          log.info("Skipping '{}': already whitelisted", r.title());
           continue;
         }
         RipType ripType = RipType.fromTitle(r.title());
         if (ripType == null) {
-          log.debug("Skipping '{}': unrecognized rip type", r.title());
+          log.info("Skipping '{}': unrecognized rip type", r.title());
           continue;
         }
         Resolution resolution = Resolution.fromTitle(r.title());
         if (resolution == null) {
           if (ripType.isLowQuality()) resolution = Resolution.SD;
           else {
-            log.debug("Skipping '{}': unrecognized resolution", r.title());
+            log.info("Skipping '{}': unrecognized resolution", r.title());
             continue;
           }
         }
         String rejection = ReleaseTitleFilter.reject(r.title(), r.sizeInBytes());
         if (rejection != null) {
-          log.debug("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
+          log.info("Skipping '{}': rejected by filter '{}'", r.title(), rejection);
           continue;
         }
         if (movie.getReleaseDate() != null && r.publishDate() != null
             && r.publishDate().isBefore(movie.getReleaseDate().atStartOfDay().toInstant(java.time.ZoneOffset.UTC))) {
-          log.debug("Skipping '{}': published {} before movie release {}", r.title(), r.publishDate(), movie.getReleaseDate());
+          log.info("Skipping '{}': published {} before movie release {}", r.title(), r.publishDate(), movie.getReleaseDate());
           continue;
         }
         if (movie.getReleaseDate() != null) {
@@ -110,7 +110,7 @@ public class MovieScanTransactionService {
           List<Integer> yearsInTitle = new ArrayList<>();
           while (m.find()) yearsInTitle.add(Integer.parseInt(m.group(1)));
           if (!yearsInTitle.isEmpty() && yearsInTitle.stream().noneMatch(allYears::contains)) {
-            log.debug("Skipping '{}': title years {} don't match release years {}", r.title(), yearsInTitle, allYears);
+            log.info("Skipping '{}': title years {} don't match release years {}", r.title(), yearsInTitle, allYears);
             continue;
           }
         }
@@ -118,11 +118,11 @@ public class MovieScanTransactionService {
           long runtimeSeconds = movie.getRuntimeMinutes() * 60L;
           long bitrateKbps = (r.sizeInBytes() * 8L) / (runtimeSeconds * 1000L);
           if (bitrateKbps < config.minBitrateKbps) {
-            log.debug("Skipping '{}': bitrate {}kbps below minimum {}kbps", r.title(), bitrateKbps, config.minBitrateKbps);
+            log.info("Skipping '{}': bitrate {}kbps below minimum {}kbps", r.title(), bitrateKbps, config.minBitrateKbps);
             continue;
           }
           if (ripType == RipType.BR && r.sizeInBytes() / runtimeSeconds < 1_500_000) {
-            log.debug("Skipping '{}': BR bitrate {}/s below minimum 1500000 bytes/s", r.title(), r.sizeInBytes() / runtimeSeconds);
+            log.info("Skipping '{}': BR bitrate {}/s below minimum 1500000 bytes/s", r.title(), r.sizeInBytes() / runtimeSeconds);
             continue;
           }
         }

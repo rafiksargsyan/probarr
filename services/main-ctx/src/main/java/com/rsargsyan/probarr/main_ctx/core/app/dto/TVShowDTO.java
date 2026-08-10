@@ -5,6 +5,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Locale;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public record TVShowDTO(
     String id,
@@ -16,7 +17,8 @@ public record TVShowDTO(
     LocalDate releaseDate,
     boolean useTvdb,
     Instant lastEnrichedAt,
-    Instant createdAt
+    Instant createdAt,
+    List<String> names
 ) {
   public static TVShowDTO from(TVShow tvShow) {
     return new TVShowDTO(
@@ -29,7 +31,8 @@ public record TVShowDTO(
         tvShow.getReleaseDate(),
         tvShow.isUseTvdb(),
         tvShow.getLastEnrichedAt(),
-        tvShow.getCreatedAt()
+        tvShow.getCreatedAt(),
+        tvShow.getNames()
     );
   }
 }

@@ -38,4 +38,13 @@ public class TVShowService {
     tvShowRepository.save(tvShow);
     return TVShowDTO.from(tvShow);
   }
+
+  @Transactional
+  public TVShowDTO addName(String idStr, String name) {
+    Long id = Util.validateTSID(idStr);
+    TVShow tvShow = tvShowRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    tvShow.addName(name);
+    tvShowRepository.save(tvShow);
+    return TVShowDTO.from(tvShow);
+  }
 }
