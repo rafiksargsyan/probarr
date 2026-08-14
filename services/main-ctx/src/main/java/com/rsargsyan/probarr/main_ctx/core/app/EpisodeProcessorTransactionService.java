@@ -22,6 +22,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.GrabberrClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.ObjectStorageClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.EpisodeRepository;
+import com.rsargsyan.probarr.main_ctx.core.ports.repository.SeasonRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ import java.util.regex.Pattern;
 public class EpisodeProcessorTransactionService {
 
   private final EpisodeRepository episodeRepository;
+  private final SeasonRepository seasonRepository;
   private final GrabberrClient grabberrClient;
   private final ObjectStorageClient objectStorageClient;
   private final ObjectMapper objectMapper;
@@ -54,11 +56,13 @@ public class EpisodeProcessorTransactionService {
 
   @Autowired
   public EpisodeProcessorTransactionService(EpisodeRepository episodeRepository,
+                                             SeasonRepository seasonRepository,
                                              GrabberrClient grabberrClient,
                                              ObjectStorageClient objectStorageClient,
                                              ObjectMapper objectMapper,
                                              Config config) {
     this.episodeRepository = episodeRepository;
+    this.seasonRepository = seasonRepository;
     this.grabberrClient = grabberrClient;
     this.objectStorageClient = objectStorageClient;
     this.objectMapper = objectMapper;
@@ -158,7 +162,8 @@ public class EpisodeProcessorTransactionService {
             episode.addToBlackList(rc.infoHash(), BlacklistReason.TORRENT_FAILED);
             deleteTorrentDownloadQuietly(torrent.id(), rc.infoHash());
           } else { // READY
-            GrabberrClient.TorrentFile mediaFile = findMediaFile(torrent.files(), episode, episode.getTvShow().getNames());
+            boolean singleSeason = seasonRepository.findByTvShowId(episode.getTvShow().getId()).size() == 1;
+            GrabberrClient.TorrentFile mediaFile = findMediaFile(torrent.files(), episode, episode.getTvShow().getNames(), singleSeason);
             if (mediaFile == null) {
               log.warn("No media file found for rc={} episode='{}', blacklisting", rc.infoHash(), label);
               episode.addToBlackList(rc.infoHash(), BlacklistReason.NO_MEDIA_FILE);
@@ -238,8 +243,15 @@ public class EpisodeProcessorTransactionService {
   /**
    * Finds the media file in the torrent that corresponds to this episode.
    * For multi-episode torrents, matches by episode number in the filename (e.g. E03, E003).
+   *
+   * @param singleSeason true if the show has exactly one season - allows falling back to a bare
+   *                     "EP07"/"E07" filename prefix with no season marker at all, since there's
+   *                     no other season it could ambiguously mean (safe here even without the
+   *                     extra care that same fallback needs at release-title level, since by
+   *                     this point the torrent is already a confirmed candidate for one season).
    */
-  private GrabberrClient.TorrentFile findMediaFile(List<GrabberrClient.TorrentFile> files, Episode episode, List<String> showNames) {
+  private GrabberrClient.TorrentFile findMediaFile(List<GrabberrClient.TorrentFile> files, Episode episode,
+                                                    List<String> showNames, boolean singleSeason) {
     List<GrabberrClient.TorrentFile> videoFiles = files.stream()
         .filter(f -> {
           String name = f.name().toLowerCase();
@@ -299,6 +311,16 @@ public class EpisodeProcessorTransactionService {
             .filter(f -> titlePattern.matcher(f.name()).find())
             .toList();
         if (titleMatched.size() == 1) return titleMatched.get(0);
+      }
+
+      // Single-season shows only: bare "EP07"/"E07" with no season marker and no show title in
+      // the filename at all (e.g. a localized title): "EP07.Великие равнины (Great Plains).mkv"
+      if (singleSeason) {
+        Pattern bareEpPattern = Pattern.compile("\\bep?0*" + num + "(?!\\d)", Pattern.CASE_INSENSITIVE);
+        List<GrabberrClient.TorrentFile> bareMatched = videoFiles.stream()
+            .filter(f -> bareEpPattern.matcher(f.name()).find())
+            .toList();
+        if (bareMatched.size() == 1) return bareMatched.get(0);
       }
     }
 

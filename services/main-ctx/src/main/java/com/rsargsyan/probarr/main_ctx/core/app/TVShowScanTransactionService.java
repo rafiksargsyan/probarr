@@ -95,6 +95,7 @@ public class TVShowScanTransactionService {
     log.info("Got {} releases from indexer for '{}'", releases.size(), searchTitle);
 
     List<String> showNames = tvShow.getNames();
+    boolean singleSeason = seasons.size() == 1;
     int added = 0;
 
     for (IndexerClient.IndexerRelease r : releases) {
@@ -160,7 +161,7 @@ public class TVShowScanTransactionService {
 
           int maxEpisodeNumber = maxEpBySeason.getOrDefault(seasonNumber, 1);
           List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
-              r.title(), seasonNumber, showNames, maxEpisodeNumber);
+              r.title(), seasonNumber, showNames, maxEpisodeNumber, singleSeason);
 
           if (episodeNumbers == null) {
             for (Episode ep : episodes) {
@@ -219,6 +220,7 @@ public class TVShowScanTransactionService {
         .orElseThrow(() -> new IllegalArgumentException("Episode not found: " + episodeId));
     TVShow tvShow = episode.getTvShow();
     List<String> showNames = tvShow.getNames();
+    boolean singleSeason = seasonRepository.findByTvShowId(tvShow.getId()).size() == 1;
 
     Integer seasonNumber = episode.getSeasonNumber();
     int maxEp = 1;
@@ -287,7 +289,7 @@ public class TVShowScanTransactionService {
         }
 
         List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
-            r.title(), seasonNumber, showNames, maxEp);
+            r.title(), seasonNumber, showNames, maxEp, singleSeason);
         if (episodeNumbers == null) {
           if (episode.isBlacklisted(r.infoHash())) {
             log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, episode.getEpisodeNumber());
