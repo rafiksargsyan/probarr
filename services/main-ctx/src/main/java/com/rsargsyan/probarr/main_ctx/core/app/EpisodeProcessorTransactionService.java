@@ -302,15 +302,20 @@ public class EpisodeProcessorTransactionService {
 
       if (candidates.size() == 1) return candidates.get(0);
 
-      // Fallback: <show title><whitespace><number>: "Jujutsu Kaisen 05"
+      // Fallback: <show title><separator><number>: "Jujutsu Kaisen 05" (spaced) or
+      // "Planet.Earth.10" (dotted scene-style naming) - try both forms of each name, and accept
+      // either whitespace or a dot as the separator between the matched name and the number.
       for (String showName : showNames) {
-        Pattern titlePattern = Pattern.compile(
-            Pattern.quote(showName) + "\\s+0*" + num + "(?!\\d)",
-            Pattern.CASE_INSENSITIVE);
-        List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
-            .filter(f -> titlePattern.matcher(f.name()).find())
-            .toList();
-        if (titleMatched.size() == 1) return titleMatched.get(0);
+        String dottedName = showName.replaceAll("\\s+", ".");
+        for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
+          Pattern titlePattern = Pattern.compile(
+              Pattern.quote(nameVariant) + "[\\s.]+0*" + num + "(?!\\d)",
+              Pattern.CASE_INSENSITIVE);
+          List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
+              .filter(f -> titlePattern.matcher(f.name()).find())
+              .toList();
+          if (titleMatched.size() == 1) return titleMatched.get(0);
+        }
       }
 
       // Single-season shows only: bare "EP07"/"E07" with no season marker and no show title in
