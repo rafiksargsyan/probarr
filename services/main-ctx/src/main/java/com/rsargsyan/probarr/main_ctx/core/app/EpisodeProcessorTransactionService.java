@@ -329,6 +329,14 @@ public class EpisodeProcessorTransactionService {
             .filter(f -> bareEpPattern.matcher(f.name()).find())
             .toList();
         if (bareMatched.size() == 1) return bareMatched.get(0);
+
+        // Same idea, spelled-out word instead of the "E"/"EP" abbreviation: "Episode3",
+        // "Episode 3", "Episode.3".
+        Pattern bareEpisodeWordPattern = Pattern.compile("(?<![a-zA-Z0-9])episode[\\s.]*0*" + num + "(?!\\d)", Pattern.CASE_INSENSITIVE);
+        List<GrabberrClient.TorrentFile> bareWordMatched = videoFiles.stream()
+            .filter(f -> bareEpisodeWordPattern.matcher(f.name()).find())
+            .toList();
+        if (bareWordMatched.size() == 1) return bareWordMatched.get(0);
       }
     }
 
