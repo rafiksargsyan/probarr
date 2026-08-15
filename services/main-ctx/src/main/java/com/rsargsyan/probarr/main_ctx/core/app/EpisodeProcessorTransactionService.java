@@ -321,7 +321,10 @@ public class EpisodeProcessorTransactionService {
       // Single-season shows only: bare "EP07"/"E07" with no season marker and no show title in
       // the filename at all (e.g. a localized title): "EP07.Великие равнины (Great Plains).mkv"
       if (singleSeason) {
-        Pattern bareEpPattern = Pattern.compile("\\bep?0*" + num + "(?!\\d)", Pattern.CASE_INSENSITIVE);
+        // (?<![a-zA-Z0-9]) instead of \b - \b treats '_' as a word character (no boundary
+        // between '_' and 'e'), which would silently miss underscore-separated scene names
+        // like "PE_II_EP01_ISLANDS...".
+        Pattern bareEpPattern = Pattern.compile("(?<![a-zA-Z0-9])ep?0*" + num + "(?!\\d)", Pattern.CASE_INSENSITIVE);
         List<GrabberrClient.TorrentFile> bareMatched = videoFiles.stream()
             .filter(f -> bareEpPattern.matcher(f.name()).find())
             .toList();
