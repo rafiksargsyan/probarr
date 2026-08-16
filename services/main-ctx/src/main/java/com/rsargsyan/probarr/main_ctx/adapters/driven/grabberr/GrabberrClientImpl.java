@@ -69,6 +69,20 @@ public class GrabberrClientImpl implements GrabberrClient {
   }
 
   @Override
+  public Optional<TorrentDownloadDTO> findById(String id) {
+    try {
+      GrabberrTorrentDownloadDTO dto = restClient.get()
+          .uri("/torrent-download/{id}", id)
+          .retrieve()
+          .body(GrabberrTorrentDownloadDTO.class);
+      return Optional.ofNullable(dto).map(this::toPort);
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode() == HttpStatus.NOT_FOUND) return Optional.empty();
+      throw e;
+    }
+  }
+
+  @Override
   public FileDownloadDTO claimFile(String torrentDownloadId, int fileIndex) {
     GrabberrFileDownloadDTO dto = restClient.put()
         .uri("/torrent-download/{id}/file/{fileIndex}", torrentDownloadId, fileIndex)

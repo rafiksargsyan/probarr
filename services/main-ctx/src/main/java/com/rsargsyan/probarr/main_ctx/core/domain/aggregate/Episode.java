@@ -126,6 +126,17 @@ public class Episode extends AggregateRoot {
     }
   }
 
+  public void updateReleaseCandidateTorrentId(String infoHash, String torrentDownloadId) {
+    for (int i = 0; i < releaseCandidates.size(); i++) {
+      ReleaseCandidate rc = releaseCandidates.get(i);
+      if (rc.infoHash().equalsIgnoreCase(infoHash)) {
+        releaseCandidates.set(i, rc.withTorrentDownloadId(torrentDownloadId));
+        touch();
+        return;
+      }
+    }
+  }
+
   public AddReleaseResult addRelease(Release newRelease) {
     List<Release> toReplace = new ArrayList<>();
     for (Release existing : releases) {

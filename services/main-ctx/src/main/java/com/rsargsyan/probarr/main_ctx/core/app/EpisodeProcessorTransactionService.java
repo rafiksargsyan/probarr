@@ -27,6 +27,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.io.IOException;
@@ -115,22 +118,30 @@ public class EpisodeProcessorTransactionService {
       }
 
       try {
-        Optional<GrabberrClient.TorrentDownloadDTO> torrentOpt = grabberrClient.findByInfoHash(rc.infoHash());
+        // Once we know grabberr's own id for this candidate's torrent, always look it up by id -
+        // grabberr's resolved infoHash (known only after magnet/torrent resolution) can differ
+        // from what the indexer originally reported at search time, which would otherwise make
+        // the candidate permanently unfindable via findByInfoHash after a successful submission.
+        Optional<GrabberrClient.TorrentDownloadDTO> torrentOpt = rc.torrentDownloadId() != null
+            ? grabberrClient.findById(rc.torrentDownloadId())
+            : grabberrClient.findByInfoHash(rc.infoHash());
 
         if (torrentOpt.isEmpty()) {
           log.info("Submitting torrent for rc={} episode='{}'", rc.infoHash(), label);
           try {
+            GrabberrClient.TorrentDownloadDTO submitted;
             if (rc.downloadUrl().startsWith("magnet:")) {
-              grabberrClient.submitTorrent(rc.downloadUrl());
+              submitted = grabberrClient.submitTorrent(rc.downloadUrl());
             } else {
               String magnetOrNull = resolveRedirectToMagnet(rc.downloadUrl());
               if (magnetOrNull != null) {
-                grabberrClient.submitTorrent(magnetOrNull);
+                submitted = grabberrClient.submitTorrent(magnetOrNull);
               } else {
                 byte[] torrentBytes = fetchTorrentBytes(rc.downloadUrl());
-                grabberrClient.submitTorrentFile(torrentBytes);
+                submitted = grabberrClient.submitTorrentFile(torrentBytes);
               }
             }
+            episode.updateReleaseCandidateTorrentId(rc.infoHash(), submitted.id());
           } catch (org.springframework.web.client.HttpClientErrorException e) {
             log.warn("Permanent error submitting torrent rc={}: {}, adding to cool-down", rc.infoHash(), e.getMessage());
             episode.addToCoolDown(rc.infoHash());
@@ -139,6 +150,9 @@ public class EpisodeProcessorTransactionService {
           }
           shouldBreak = true;
         } else {
+          if (rc.torrentDownloadId() == null) {
+            episode.updateReleaseCandidateTorrentId(rc.infoHash(), torrentOpt.get().id());
+          }
           GrabberrClient.TorrentDownloadDTO torrent = torrentOpt.get();
 
           if (torrent.status() == GrabberrClient.TorrentStatus.QUEUED
@@ -582,20 +596,21 @@ public class EpisodeProcessorTransactionService {
     tracks.add(track);
   }
 
-  private String resolveTorrentSource(String infoHash) {
-    try {
-      GrabberrClient.TorrentSourceDTO sourceDto = grabberrClient.getTorrentSourceByHash(infoHash);
-      String value = sourceDto.value();
-      if (value == null) return null;
-      if (value.startsWith("magnet:")) return value;
-      String s3Key = "torrents/" + infoHash + ".torrent";
-      byte[] torrentBytes = fetchTorrentBytes(value);
-      objectStorageClient.upload(s3Key, torrentBytes, "application/x-bittorrent");
-      return s3Key;
-    } catch (Exception e) {
-      log.warn("Could not resolve torrent source for infoHash={}: {}", infoHash, e.getMessage());
-      return null;
+  // No fallback to null here on purpose: a Release with no torrentSource is unusable (q62 can
+  // never grab it), so a failure to resolve it must abort the whole release creation instead of
+  // silently producing a broken Release - propagates to processMediaFile's own catch, which
+  // rejects the file and lets it be retried next cycle rather than getting stuck half-created.
+  private String resolveTorrentSource(String infoHash) throws IOException, InterruptedException {
+    GrabberrClient.TorrentSourceDTO sourceDto = grabberrClient.getTorrentSourceByHash(infoHash);
+    String value = sourceDto.value();
+    if (value == null) {
+      throw new IllegalStateException("Grabberr returned no torrent source for infoHash=" + infoHash);
     }
+    if (value.startsWith("magnet:")) return value;
+    String s3Key = "torrents/" + infoHash + ".torrent";
+    byte[] torrentBytes = fetchTorrentBytes(value);
+    objectStorageClient.upload(s3Key, torrentBytes, "application/x-bittorrent");
+    return s3Key;
   }
 
   private String resolveRedirectToMagnet(String downloadUrl) throws IOException, InterruptedException {
@@ -619,6 +634,11 @@ public class EpisodeProcessorTransactionService {
         .GET()
         .build();
     HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+    if (response.statusCode() == 404) {
+      // Jackett's download-link cache entry has expired/is gone - retrying the same URL can
+      // never succeed, so treat it as permanent (routes to cool-down, not infinite retry).
+      throw HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", HttpHeaders.EMPTY, new byte[0], null);
+    }
     byte[] bytes = response.body();
     if (bytes == null || bytes.length == 0) {
       throw new IllegalStateException("Empty response fetching torrent from: " + downloadUrl);

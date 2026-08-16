@@ -12,6 +12,8 @@ public interface GrabberrClient {
 
   Optional<TorrentDownloadDTO> findByInfoHash(String infoHash);
 
+  Optional<TorrentDownloadDTO> findById(String id);
+
   FileDownloadDTO claimFile(String torrentDownloadId, int fileIndex);
 
   FileDownloadDTO getFileStatus(String torrentDownloadId, int fileIndex);
