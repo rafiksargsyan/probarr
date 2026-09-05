@@ -628,23 +628,37 @@ public class MovieProcessorTransactionService {
   }
 
   private Comparator<ReleaseCandidate> releaseCandidateComparator() {
-    return (a, b) -> {
-      if (a.ripType().isLowQuality() || b.ripType().isLowQuality()) {
-        int cmp = Integer.compare(a.ripType().quality(), b.ripType().quality());
-        if (cmp != 0) return -cmp;
-      }
-      int resCmp = a.resolution().compareTo(b.resolution());
-      if (resCmp != 0) return -resCmp;
-      int ripCmp = Integer.compare(a.ripType().quality(), b.ripType().quality());
-      if (ripCmp != 0) return -ripCmp;
-      if (a.releaseAt() != null && b.releaseAt() != null) {
-        long dayA = a.releaseAt().getEpochSecond() / 86400;
-        long dayB = b.releaseAt().getEpochSecond() / 86400;
-        if (dayA != dayB) return Long.compare(dayB, dayA);
-      }
-      int seedersA = a.seeders() != null ? a.seeders() : 0;
-      int seedersB = b.seeders() != null ? b.seeders() : 0;
-      return Integer.compare(seedersB, seedersA);
+    Comparator<ReleaseCandidate> byRipQualityDesc =
+        Comparator.comparingInt((ReleaseCandidate rc) -> rc.ripType().quality()).reversed();
+    Comparator<ReleaseCandidate> byResolutionDesc =
+        Comparator.comparing(ReleaseCandidate::resolution).reversed();
+    // Ties when either side lacks a date, rather than falling back to Instant.MIN/some sentinel -
+    // that would make "has a date" always beat "no date" here, silently overriding the seeders
+    // tiebreak below for exactly the pairs where we have the least signal to justify it.
+    Comparator<ReleaseCandidate> byDayDesc = (a, b) -> {
+      if (a.releaseAt() == null || b.releaseAt() == null) return 0;
+      long dayA = a.releaseAt().getEpochSecond() / 86400;
+      long dayB = b.releaseAt().getEpochSecond() / 86400;
+      return Long.compare(dayB, dayA);
     };
+    Comparator<ReleaseCandidate> bySeedersDesc =
+        Comparator.comparingInt((ReleaseCandidate rc) -> rc.seeders() != null ? rc.seeders() : 0).reversed();
+
+    return Comparator
+        // Low-quality (CAM/TELESYNC) candidates are grouped and ranked separately from everything
+        // else: resolution numbers on a cam-rip aren't meaningful, so rip-type quality leads
+        // within that group instead. This must be the top-level key, not a per-pair check like
+        // "either side is low quality" (the previous version) - deciding which field to compare
+        // by based on a property of the *pair* rather than each element on its own is exactly
+        // what makes a comparator non-transitive and trips TimSort's contract check. Branching on
+        // a.ripType().isLowQuality() in the next step is safe only because thenComparing never
+        // even calls it unless this key already proved a and b share the same isLowQuality value.
+        .comparing((ReleaseCandidate rc) -> rc.ripType().isLowQuality())
+        .thenComparing((a, b) -> a.ripType().isLowQuality()
+            ? byRipQualityDesc.compare(a, b)
+            : byResolutionDesc.compare(a, b))
+        .thenComparing(byRipQualityDesc)
+        .thenComparing(byDayDesc)
+        .thenComparing(bySeedersDesc);
   }
 }
