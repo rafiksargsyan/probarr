@@ -632,15 +632,15 @@ public class MovieProcessorTransactionService {
         Comparator.comparingInt((ReleaseCandidate rc) -> rc.ripType().quality()).reversed();
     Comparator<ReleaseCandidate> byResolutionDesc =
         Comparator.comparing(ReleaseCandidate::resolution).reversed();
-    // Ties when either side lacks a date, rather than falling back to Instant.MIN/some sentinel -
-    // that would make "has a date" always beat "no date" here, silently overriding the seeders
-    // tiebreak below for exactly the pairs where we have the least signal to justify it.
-    Comparator<ReleaseCandidate> byDayDesc = (a, b) -> {
-      if (a.releaseAt() == null || b.releaseAt() == null) return 0;
-      long dayA = a.releaseAt().getEpochSecond() / 86400;
-      long dayB = b.releaseAt().getEpochSecond() / 86400;
-      return Long.compare(dayB, dayA);
-    };
+    // Missing release date sorts as "oldest" via a fixed sentinel, not a per-pair tie-and-defer-
+    // to-seeders rule - that earlier version decided whether *date* or *seeders* was the deciding
+    // factor based on which specific pair was being compared (tie only when *this* pair had a
+    // missing date), which is the exact same non-transitive pattern as the rip-quality/resolution
+    // bug above, just relocated: three candidates with recent+low-seeders, no-date+mid-seeders,
+    // and old+high-seeders dates can cycle. A fixed sentinel makes this a pure per-element key.
+    Comparator<ReleaseCandidate> byDayDesc = Comparator.comparingLong(
+        (ReleaseCandidate rc) -> rc.releaseAt() != null ? rc.releaseAt().getEpochSecond() / 86400 : Long.MIN_VALUE)
+        .reversed();
     Comparator<ReleaseCandidate> bySeedersDesc =
         Comparator.comparingInt((ReleaseCandidate rc) -> rc.seeders() != null ? rc.seeders() : 0).reversed();
 

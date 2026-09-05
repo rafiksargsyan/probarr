@@ -675,24 +675,28 @@ public class EpisodeProcessorTransactionService {
   }
 
   private Comparator<ReleaseCandidate> releaseCandidateComparator() {
-    return (a, b) -> {
-      if (a.ripType().isLowQuality() || b.ripType().isLowQuality()) {
-        int cmp = Integer.compare(a.ripType().quality(), b.ripType().quality());
-        if (cmp != 0) return -cmp;
-      }
-      int resCmp = a.resolution().compareTo(b.resolution());
-      if (resCmp != 0) return -resCmp;
-      int ripCmp = Integer.compare(a.ripType().quality(), b.ripType().quality());
-      if (ripCmp != 0) return -ripCmp;
-      if (a.releaseAt() != null && b.releaseAt() != null) {
-        long dayA = a.releaseAt().getEpochSecond() / 86400;
-        long dayB = b.releaseAt().getEpochSecond() / 86400;
-        if (dayA != dayB) return Long.compare(dayB, dayA);
-      }
-      int seedersA = a.seeders() != null ? a.seeders() : 0;
-      int seedersB = b.seeders() != null ? b.seeders() : 0;
-      return Integer.compare(seedersB, seedersA);
-    };
+    Comparator<ReleaseCandidate> byRipQualityDesc =
+        Comparator.comparingInt((ReleaseCandidate rc) -> rc.ripType().quality()).reversed();
+    Comparator<ReleaseCandidate> byResolutionDesc =
+        Comparator.comparing(ReleaseCandidate::resolution).reversed();
+    // Fixed sentinel for a missing date, not a per-pair tie-and-defer-to-seeders rule - see
+    // MovieProcessorTransactionService.releaseCandidateComparator() for why that's non-transitive.
+    Comparator<ReleaseCandidate> byDayDesc = Comparator.comparingLong(
+        (ReleaseCandidate rc) -> rc.releaseAt() != null ? rc.releaseAt().getEpochSecond() / 86400 : Long.MIN_VALUE)
+        .reversed();
+    Comparator<ReleaseCandidate> bySeedersDesc =
+        Comparator.comparingInt((ReleaseCandidate rc) -> rc.seeders() != null ? rc.seeders() : 0).reversed();
+
+    return Comparator
+        // See MovieProcessorTransactionService.releaseCandidateComparator() for why this must be
+        // the top-level key rather than a per-pair "either side is low quality" check.
+        .comparing((ReleaseCandidate rc) -> rc.ripType().isLowQuality())
+        .thenComparing((a, b) -> a.ripType().isLowQuality()
+            ? byRipQualityDesc.compare(a, b)
+            : byResolutionDesc.compare(a, b))
+        .thenComparing(byRipQualityDesc)
+        .thenComparing(byDayDesc)
+        .thenComparing(bySeedersDesc);
   }
 
   private String episodeLabel(Episode episode) {
