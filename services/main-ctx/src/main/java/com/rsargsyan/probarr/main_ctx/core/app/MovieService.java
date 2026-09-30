@@ -97,6 +97,15 @@ public class MovieService {
   }
 
   @Transactional
+  public MovieDTO removeRelease(String idStr, String infoHash) {
+    Long id = Util.validateTSID(idStr);
+    Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
+    movie.removeRelease(infoHash);
+    movieRepository.save(movie);
+    return MovieDTO.from(movie);
+  }
+
+  @Transactional
   public MovieDTO addToBlackList(String idStr, String infoHash) {
     Long id = Util.validateTSID(idStr);
     Movie movie = movieRepository.findById(id).orElseThrow(ResourceNotFoundException::new);

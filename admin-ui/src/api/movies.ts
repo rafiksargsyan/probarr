@@ -29,6 +29,9 @@ export function setForceScan(user: User, id: string, value: boolean): Promise<Mo
 export function triggerScan(user: User, id: string): Promise<Movie> {
   return apiRequest(`/movie/${id}/scan`, user, { method: 'POST' });
 }
+export function removeRelease(user: User, id: string, infoHash: string): Promise<Movie> {
+  return apiRequest(`/movie/${id}/release/${infoHash}`, user, { method: 'DELETE' });
+}
 export function addToBlackList(user: User, id: string, candidateId: string): Promise<Movie> {
   return apiRequest(`/movie/${id}/blacklist/${candidateId}`, user, { method: 'POST' });
 }

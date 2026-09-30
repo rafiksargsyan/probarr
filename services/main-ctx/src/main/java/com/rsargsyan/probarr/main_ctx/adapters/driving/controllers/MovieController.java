@@ -60,6 +60,12 @@ public class MovieController {
     return ResponseEntity.ok(movieService.setForceScan(id, value));
   }
 
+  @DeleteMapping("/{id}/release/{infoHash}")
+  public ResponseEntity<MovieDTO> removeRelease(@PathVariable String id,
+                                                @PathVariable String infoHash) {
+    return ResponseEntity.ok(movieService.removeRelease(id, infoHash));
+  }
+
   @PostMapping("/{id}/blacklist/{infoHash}")
   public ResponseEntity<MovieDTO> addToBlackList(@PathVariable String id,
                                                  @PathVariable String infoHash) {

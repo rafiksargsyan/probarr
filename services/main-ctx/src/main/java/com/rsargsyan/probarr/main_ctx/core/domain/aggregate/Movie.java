@@ -176,6 +176,22 @@ public class Movie extends AggregateRoot {
     }
   }
 
+  // Moves the infoHash to the blacklist rather than just dropping it, so a future scan can't
+  // silently re-grab the exact release an admin just chose to delete - see addRelease/
+  // MovieProcessorTransactionService, which only ever offers a candidate for re-processing when
+  // it isn't already on one of these lists.
+  public void removeRelease(String infoHash) {
+    boolean removed = releases.removeIf(r -> r.infoHash().equalsIgnoreCase(infoHash));
+    if (!removed) return;
+    String h = infoHash.toLowerCase();
+    whiteList.remove(h);
+    boolean alreadyBlacklisted = blackList.stream().anyMatch(e -> e.infoHash().equals(h));
+    if (!alreadyBlacklisted) {
+      blackList.add(new BlacklistEntry(h, BlacklistReason.MANUAL));
+    }
+    touch();
+  }
+
   public void addToBlackList(String infoHash, BlacklistReason reason) {
     String h = infoHash.toLowerCase();
     boolean exists = blackList.stream().anyMatch(e -> e.infoHash().equals(h));
