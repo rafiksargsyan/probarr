@@ -253,17 +253,21 @@ public class MovieProcessorTransactionService {
 
     if (candidates.isEmpty()) return null;
 
-    record Scored(GrabberrClient.TorrentFile file, long score) {}
+    record Scored(GrabberrClient.TorrentFile file, FileNameScore score) {}
+    // Title score alone (no year bonus) gates whether a file is even a plausible match at all -
+    // a bare year match (e.g. two unrelated movies sharing a release year) must never be enough
+    // on its own, since that's exactly how a wrong-movie torrent slips through. Year only comes
+    // into play below, as a tiebreaker once we already know which files are real candidates.
     List<Scored> scored = candidates.stream()
         .map(f -> new Scored(f, scoreFileName(f.name(), movie)))
-        .sorted(Comparator.comparingLong(Scored::score).reversed())
+        .filter(s -> s.score().titleScore() >= 1)
+        .sorted(Comparator.comparingLong((Scored s) -> s.score().total()).reversed())
         .toList();
 
-    if (candidates.size() == 1) {
-      return scored.get(0).score() > 0 ? scored.get(0).file() : null;
-    }
+    if (scored.isEmpty()) return null;
+    if (scored.size() == 1) return scored.get(0).file();
 
-    if (scored.get(0).score() > 0 && scored.get(0).score() > scored.get(1).score()) {
+    if (scored.get(0).score().total() > scored.get(1).score().total()) {
       return scored.get(0).file();
     }
     return null;
@@ -313,7 +317,11 @@ public class MovieProcessorTransactionService {
     return false;
   }
 
-  private long scoreFileName(String fileName, Movie movie) {
+  private record FileNameScore(long titleScore, long yearBonus) {
+    long total() { return titleScore + yearBonus; }
+  }
+
+  private FileNameScore scoreFileName(String fileName, Movie movie) {
     String name = fileName.toLowerCase();
 
     long yearBonus = 0;
@@ -326,14 +334,17 @@ public class MovieProcessorTransactionService {
     List<String> titles = new ArrayList<>(movie.getAlternativeTitles());
     titles.add(movie.getOriginalTitle());
 
-    long bestTitleScore = titles.stream().mapToLong(title -> {
+    // Words of 3 letters or fewer (the, a, of, in, ...) are too common to count as a real title
+    // match on their own - without this, a filename for a completely different movie can still
+    // score > 0 just by containing "the", which is how the year-only false-positive case got in.
+    long titleScore = titles.stream().mapToLong(title -> {
       String[] tokens = title.toLowerCase().split("[\\s:,'.()+\\-]+");
       return Arrays.stream(tokens)
-          .filter(t -> t.length() >= 3 && name.contains(t))
+          .filter(t -> t.length() > 3 && name.contains(t))
           .count();
     }).max().orElse(0L);
 
-    return bestTitleScore + yearBonus;
+    return new FileNameScore(titleScore, yearBonus);
   }
 
   private boolean processMediaFile(Movie movie, ReleaseCandidate rc,
