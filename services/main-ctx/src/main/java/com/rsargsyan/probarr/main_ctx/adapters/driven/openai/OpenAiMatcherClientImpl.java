@@ -175,12 +175,15 @@ public class OpenAiMatcherClientImpl implements AnimeMatcherClient {
         %s
 
         This is an anime release. Pick the file index that is exactly the target episode — not an \
-        NCOP/NCED, special, OVA, or any other extra. Episode numbers in filenames may be absolute \
-        (across the whole series) or season-relative - the target episode's season-relative number \
-        and absolute number can both appear as plausible matches for different files, so look at \
-        the full set of filenames (how many there are, their numbering range) to work out which \
-        convention this release actually uses before deciding. If no file confidently matches, \
-        return null.
+        NCOP/NCED, special, OVA, or any other extra. The "index" value is just an arbitrary id for \
+        you to return - it carries no meaning about which episode a file is and may coincidentally \
+        equal the target episode/absolute number without that being a match. Only the episode \
+        number written in the "name" field tells you which episode a file actually is. Episode \
+        numbers in filenames may be absolute (across the whole series) or season-relative - the \
+        target episode's season-relative number and absolute number can both appear as plausible \
+        matches for different files, so look at the full set of filenames (how many there are, \
+        their numbering range) to work out which convention this release actually uses before \
+        deciding. If no file confidently matches, return null.
         """.formatted(String.join(", ", showNames), seasonNumber, episodeNumber, absoluteNumber, fileList);
 
     log.info("OpenAiMatcherClient.locateEpisodeFile: calling LLM for season={} episode={} absolute={} ({} file(s))",
