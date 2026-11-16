@@ -8,7 +8,10 @@ public enum SubsType {
   public static SubsType fromTitle(String title) {
     if (title == null) return null;
     String t = title.toLowerCase();
-    if (t.contains("forced") || t.contains("форсирован") || t.contains("forzados")) return FORCED;
+    // "Signs" / "Signs & Songs" is anime fansub terminology for the same thing the rest of the
+    // scene calls "Forced" - on-screen text and song lyrics only, no dialogue, meant to pair
+    // with dub audio.
+    if (t.contains("forced") || t.contains("форсирован") || t.contains("forzados") || t.contains("signs")) return FORCED;
     if (t.contains("sdh") || t.contains("non udenti")) return SDH;
     if (t.contains("full") || t.contains("полные") || t.contains("complets")
         || t.contains("regular") || t.contains("completi") || t.contains("completos")) return FULL;
