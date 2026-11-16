@@ -44,6 +44,9 @@ public class Config {
   @Value("${tvshow.scan-delay-seconds}")
   public int tvShowScanDelaySeconds;
 
+  @Value("${tvshow.episode-scan-stale-timeout-seconds:3600}")
+  public int episodeScanStaleTimeoutSeconds;
+
   @Value("${tvshow.enrichment-interval-seconds:604800}")
   public int tvShowEnrichmentIntervalSeconds;
 

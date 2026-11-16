@@ -16,4 +16,6 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
 
   @Query(value = "SELECT id FROM episode WHERE jsonb_array_length(release_candidates) > 0", nativeQuery = true)
   List<Long> findIdsWithPendingCandidates();
+
+  List<Episode> findByScanningTrue();
 }

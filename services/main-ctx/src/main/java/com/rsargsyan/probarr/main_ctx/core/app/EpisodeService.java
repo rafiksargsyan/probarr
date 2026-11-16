@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
+import com.rsargsyan.probarr.main_ctx.Config;
 import com.rsargsyan.probarr.main_ctx.core.Util;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.ClientEpisodeDTO;
 import com.rsargsyan.probarr.main_ctx.core.app.dto.EpisodeCreationDTO;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -24,14 +26,17 @@ public class EpisodeService {
   private final EpisodeRepository episodeRepository;
   private final TVShowRepository tvShowRepository;
   private final TVShowScanTransactionService tvShowScanTransactionService;
+  private final Config config;
 
   @Autowired
   public EpisodeService(EpisodeRepository episodeRepository,
                         TVShowRepository tvShowRepository,
-                        TVShowScanTransactionService tvShowScanTransactionService) {
+                        TVShowScanTransactionService tvShowScanTransactionService,
+                        Config config) {
     this.episodeRepository = episodeRepository;
     this.tvShowRepository = tvShowRepository;
     this.tvShowScanTransactionService = tvShowScanTransactionService;
+    this.config = config;
   }
 
   public ClientEpisodeDTO getClientEpisodeByTvShowId(String tvShowIdStr, int seasonNumber, int episodeNumber) {
@@ -102,6 +107,16 @@ public class EpisodeService {
       log.info("triggerScan: skipping episode [{}] — {} candidate(s) already pending",
           episodeId, episode.getReleaseCandidates().size());
       return EpisodeDTO.from(episode);
+    }
+    if (episode.isScanning()) {
+      Duration staleTimeout = Duration.ofSeconds(config.episodeScanStaleTimeoutSeconds);
+      if (episode.isScanningStale(staleTimeout)) {
+        log.warn("triggerScan: episode [{}] has stale scanning state, resetting", episodeId);
+        tvShowScanTransactionService.markEpisodeScanDone(episodeId);
+      } else {
+        log.info("triggerScan: skipping episode [{}] — already scanning", episodeId);
+        return EpisodeDTO.from(episode);
+      }
     }
     tvShowScanTransactionService.markEpisodeScanning(episodeId);
     Thread.ofVirtual().start(() -> {
