@@ -3,6 +3,7 @@ package com.rsargsyan.probarr.main_ctx.core.app;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Episode;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Season;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.TVShow;
+import com.rsargsyan.probarr.main_ctx.core.domain.service.AnimeEpisodeNumberResolver;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.EpisodeNumberResolver;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.ReleaseTitleFilter;
 import com.rsargsyan.probarr.main_ctx.core.domain.service.TitleLanguageParser;
@@ -11,7 +12,6 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Resolution;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.RipType;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.TorrentTracker;
-import com.rsargsyan.probarr.main_ctx.core.ports.client.AnimeMatcherClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.IndexerClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.EpisodeRepository;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.SeasonRepository;
@@ -34,19 +34,16 @@ public class TVShowScanTransactionService {
   private final SeasonRepository seasonRepository;
   private final EpisodeRepository episodeRepository;
   private final IndexerClient indexerClient;
-  private final AnimeMatcherClient animeMatcherClient;
 
   @Autowired
   public TVShowScanTransactionService(TVShowRepository tvShowRepository,
                                       SeasonRepository seasonRepository,
                                       EpisodeRepository episodeRepository,
-                                      IndexerClient indexerClient,
-                                      AnimeMatcherClient animeMatcherClient) {
+                                      IndexerClient indexerClient) {
     this.tvShowRepository = tvShowRepository;
     this.seasonRepository = seasonRepository;
     this.episodeRepository = episodeRepository;
     this.indexerClient = indexerClient;
-    this.animeMatcherClient = animeMatcherClient;
   }
 
   @Transactional
@@ -91,6 +88,16 @@ public class TVShowScanTransactionService {
             )
         ));
 
+    // Cumulative episode count of all seasons before a given one - lets AnimeEpisodeNumberResolver
+    // translate an absolute episode range ("25-47", no season marker at all) to this season's
+    // relative numbers.
+    Map<Integer, Integer> absoluteOffsetBySeason = new java.util.HashMap<>();
+    int cumulativeEpisodes = 0;
+    for (Integer sn : maxEpBySeason.keySet().stream().sorted().toList()) {
+      absoluteOffsetBySeason.put(sn, cumulativeEpisodes);
+      cumulativeEpisodes += maxEpBySeason.get(sn);
+    }
+
     String searchTitle = pickMostEnglishTitle(tvShow.getOriginalTitle(), tvShow.getNames(), tvShow.getOriginalLocale());
     log.info("Scanning '{}' (search: '{}', {} season(s), {} episode(s))",
         tvShow.getOriginalTitle(), searchTitle, seasons.size(), allEpisodes.size());
@@ -101,13 +108,6 @@ public class TVShowScanTransactionService {
     List<String> showNames = tvShow.getNames();
     boolean singleSeason = seasons.size() == 1;
     int added = 0;
-
-    List<AnimeMatcherClient.SeasonSummary> seasonSummaries = tvShow.isAnime()
-        ? seasons.stream()
-            .map(s -> new AnimeMatcherClient.SeasonSummary(
-                s.getSeasonNumber(), maxEpBySeason.getOrDefault(s.getSeasonNumber(), 1)))
-            .toList()
-        : List.of();
 
     for (IndexerClient.IndexerRelease r : releases) {
       try {
@@ -165,83 +165,45 @@ public class TVShowScanTransactionService {
             r.title()
         );
 
-        if (tvShow.isAnime()) {
-          List<AnimeMatcherClient.SeasonMatch> matches =
-              animeMatcherClient.matchRelease(r.title(), showNames, seasonSummaries);
-          if (matches.isEmpty()) {
-            log.info("Skipping '{}': LLM found no matching season/episode", r.title());
+        for (Season season : seasons) {
+          int seasonNumber = season.getSeasonNumber();
+          List<Episode> episodes = episodesBySeason.get(seasonNumber);
+          if (episodes == null || episodes.isEmpty()) {
+            log.info("Skipping '{}' for season {}: no eligible episodes (none exist, or all already have candidates)",
+                r.title(), seasonNumber);
+            continue;
           }
-          for (AnimeMatcherClient.SeasonMatch m : matches) {
-            List<Episode> episodes = episodesBySeason.get(m.seasonNumber());
-            if (episodes == null || episodes.isEmpty()) {
-              log.info("Skipping '{}' for season {}: no eligible episodes (none exist, or all already have candidates)",
-                  r.title(), m.seasonNumber());
-              continue;
-            }
-            if (m.fullSeason()) {
-              for (Episode ep : episodes) {
-                if (ep.isBlacklisted(r.infoHash())) {
-                  log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), m.seasonNumber(), ep.getEpisodeNumber());
-                } else {
-                  ep.addReleaseCandidate(candidate);
-                  added++;
-                }
-              }
-            } else if (m.episodeNumbers().isEmpty()) {
-              log.info("Skipping '{}' for season {}: LLM returned no episode numbers", r.title(), m.seasonNumber());
-            } else {
-              for (int epNum : m.episodeNumbers()) {
-                Episode ep = episodes.stream().filter(e -> epNum == e.getEpisodeNumber()).findFirst().orElse(null);
-                if (ep == null) {
-                  log.info("Skipping '{}' for episode S{}E{}: no matching episode entity", r.title(), m.seasonNumber(), epNum);
-                } else if (ep.isBlacklisted(r.infoHash())) {
-                  log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), m.seasonNumber(), epNum);
-                } else {
-                  ep.addReleaseCandidate(candidate);
-                }
-              }
-              added++;
-            }
-          }
-        } else {
-          for (Season season : seasons) {
-            int seasonNumber = season.getSeasonNumber();
-            List<Episode> episodes = episodesBySeason.get(seasonNumber);
-            if (episodes == null || episodes.isEmpty()) {
-              log.info("Skipping '{}' for season {}: no eligible episodes (none exist, or all already have candidates)",
-                  r.title(), seasonNumber);
-              continue;
-            }
 
-            int maxEpisodeNumber = maxEpBySeason.getOrDefault(seasonNumber, 1);
-            List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
-                r.title(), seasonNumber, showNames, maxEpisodeNumber, singleSeason);
+          int maxEpisodeNumber = maxEpBySeason.getOrDefault(seasonNumber, 1);
+          List<Integer> episodeNumbers = tvShow.isAnime()
+              ? AnimeEpisodeNumberResolver.resolve(r.title(), seasonNumber, showNames, maxEpisodeNumber, singleSeason,
+                  absoluteOffsetBySeason.getOrDefault(seasonNumber, 0))
+              : EpisodeNumberResolver.resolve(r.title(), seasonNumber, showNames, maxEpisodeNumber, singleSeason);
 
-            if (episodeNumbers == null) {
-              for (Episode ep : episodes) {
-                if (ep.isBlacklisted(r.infoHash())) {
-                  log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, ep.getEpisodeNumber());
-                } else {
-                  ep.addReleaseCandidate(candidate);
-                  added++;
-                }
+          if (episodeNumbers == null) {
+            for (Episode ep : episodes) {
+              if (ep.isBlacklisted(r.infoHash())) {
+                log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, ep.getEpisodeNumber());
+              } else {
+                ep.addReleaseCandidate(candidate);
+                added++;
               }
-            } else if (episodeNumbers.isEmpty()) {
-              log.info("Skipping '{}' for season {}: parsed episode range didn't match any known episode (maxEpisodeNumber={})",
-                  r.title(), seasonNumber, maxEpisodeNumber);
-            } else {
-              for (int epNum : episodeNumbers) {
-                Episode ep = episodes.stream().filter(e -> epNum == e.getEpisodeNumber()).findFirst().orElse(null);
-                if (ep == null) {
-                  log.info("Skipping '{}' for episode S{}E{}: no matching episode entity", r.title(), seasonNumber, epNum);
-                } else if (ep.isBlacklisted(r.infoHash())) {
-                  log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, epNum);
-                } else {
-                  ep.addReleaseCandidate(candidate);
-                }
-              }
-              added++;
             }
+          } else if (episodeNumbers.isEmpty()) {
+            log.info("Skipping '{}' for season {}: parsed episode range didn't match any known episode (maxEpisodeNumber={})",
+                r.title(), seasonNumber, maxEpisodeNumber);
+          } else {
+            for (int epNum : episodeNumbers) {
+              Episode ep = episodes.stream().filter(e -> epNum == e.getEpisodeNumber()).findFirst().orElse(null);
+              if (ep == null) {
+                log.info("Skipping '{}' for episode S{}E{}: no matching episode entity", r.title(), seasonNumber, epNum);
+              } else if (ep.isBlacklisted(r.infoHash())) {
+                log.info("Skipping '{}' for episode S{}E{}: blacklisted", r.title(), seasonNumber, epNum);
+              } else {
+                ep.addReleaseCandidate(candidate);
+              }
+            }
+            added++;
           }
         }
       } catch (Exception e) {
@@ -291,12 +253,13 @@ public class TVShowScanTransactionService {
         ));
     int maxEp = seasonNumber != null ? maxEpBySeason.getOrDefault(seasonNumber, 1) : 1;
 
-    List<AnimeMatcherClient.SeasonSummary> seasonSummaries = tvShow.isAnime()
-        ? seasons.stream()
-            .map(s -> new AnimeMatcherClient.SeasonSummary(
-                s.getSeasonNumber(), maxEpBySeason.getOrDefault(s.getSeasonNumber(), 1)))
-            .toList()
-        : List.of();
+    // Cumulative episode count of all seasons before this episode's season - lets
+    // AnimeEpisodeNumberResolver translate an absolute episode range to this season's relative
+    // numbers.
+    int absoluteOffset = seasonNumber == null ? 0 : maxEpBySeason.entrySet().stream()
+        .filter(e -> e.getKey() < seasonNumber)
+        .mapToInt(Map.Entry::getValue)
+        .sum();
 
     String searchTitle = pickMostEnglishTitle(tvShow.getOriginalTitle(), tvShow.getNames(), tvShow.getOriginalLocale());
     List<IndexerClient.IndexerRelease> releases = indexerClient.searchTvShowSeason(searchTitle, 0);
@@ -358,20 +321,11 @@ public class TVShowScanTransactionService {
           continue;
         }
 
-        boolean matchesThisEpisode;
-        if (tvShow.isAnime()) {
-          List<AnimeMatcherClient.SeasonMatch> matches =
-              animeMatcherClient.matchRelease(r.title(), showNames, seasonSummaries);
-          matchesThisEpisode = matches.stream().anyMatch(m ->
-              m.seasonNumber() == seasonNumber
-                  && (m.fullSeason()
-                      || (episode.getEpisodeNumber() != null && m.episodeNumbers().contains(episode.getEpisodeNumber()))));
-        } else {
-          List<Integer> episodeNumbers = EpisodeNumberResolver.resolve(
-              r.title(), seasonNumber, showNames, maxEp, singleSeason);
-          matchesThisEpisode = episodeNumbers == null
-              || (episode.getEpisodeNumber() != null && episodeNumbers.contains(episode.getEpisodeNumber()));
-        }
+        List<Integer> episodeNumbers = tvShow.isAnime()
+            ? AnimeEpisodeNumberResolver.resolve(r.title(), seasonNumber, showNames, maxEp, singleSeason, absoluteOffset)
+            : EpisodeNumberResolver.resolve(r.title(), seasonNumber, showNames, maxEp, singleSeason);
+        boolean matchesThisEpisode = episodeNumbers == null
+            || (episode.getEpisodeNumber() != null && episodeNumbers.contains(episode.getEpisodeNumber()));
 
         if (matchesThisEpisode) {
           if (episode.isBlacklisted(r.infoHash())) {
@@ -393,6 +347,7 @@ public class TVShowScanTransactionService {
     episodeRepository.save(episode);
     log.info("Scan done for episode [{}]: added {} candidate(s)", episodeId, added);
   }
+
 
   private static String pickMostEnglishTitle(String original, List<String> alternatives, Locale locale) {
     if (locale != null && locale.isEnglish()) return original;

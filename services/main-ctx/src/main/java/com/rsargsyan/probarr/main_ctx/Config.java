@@ -53,9 +53,6 @@ public class Config {
   @Value("${tvdb.api-key:}")
   public String tvdbApiKey;
 
-  @Value("${openai.api-key:}")
-  public String openaiApiKey;
-
   @Value("${movie.enrichment-interval-seconds:604800}")
   public int movieEnrichmentIntervalSeconds;
 

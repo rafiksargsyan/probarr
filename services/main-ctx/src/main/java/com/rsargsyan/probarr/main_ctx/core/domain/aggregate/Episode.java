@@ -174,6 +174,20 @@ public class Episode extends AggregateRoot {
     return hashes;
   }
 
+  // Moves the infoHash to the blacklist rather than just dropping it, so a future scan can't
+  // silently re-grab the exact release an admin just chose to delete - mirrors Movie.removeRelease.
+  public void removeRelease(String infoHash) {
+    boolean removed = releases.removeIf(r -> r.infoHash().equalsIgnoreCase(infoHash));
+    if (!removed) return;
+    String h = infoHash.toLowerCase();
+    whiteList.remove(h);
+    boolean alreadyBlacklisted = blackList.stream().anyMatch(e -> e.infoHash().equals(h));
+    if (!alreadyBlacklisted) {
+      blackList.add(new BlacklistEntry(h, BlacklistReason.MANUAL));
+    }
+    touch();
+  }
+
   public void addToCoolDown(String infoHash) {
     String h = infoHash.toLowerCase();
     if (!coolDownList.contains(h)) {

@@ -19,7 +19,6 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
-import com.rsargsyan.probarr.main_ctx.core.ports.client.AnimeMatcherClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.GrabberrClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.ObjectStorageClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.EpisodeRepository;
@@ -57,7 +56,6 @@ public class EpisodeProcessorTransactionService {
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final Config config;
-  private final AnimeMatcherClient animeMatcherClient;
 
   @Autowired
   public EpisodeProcessorTransactionService(EpisodeRepository episodeRepository,
@@ -65,15 +63,13 @@ public class EpisodeProcessorTransactionService {
                                              GrabberrClient grabberrClient,
                                              ObjectStorageClient objectStorageClient,
                                              ObjectMapper objectMapper,
-                                             Config config,
-                                             AnimeMatcherClient animeMatcherClient) {
+                                             Config config) {
     this.episodeRepository = episodeRepository;
     this.seasonRepository = seasonRepository;
     this.grabberrClient = grabberrClient;
     this.objectStorageClient = objectStorageClient;
     this.objectMapper = objectMapper;
     this.config = config;
-    this.animeMatcherClient = animeMatcherClient;
     this.httpClient = HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NEVER)
         .connectTimeout(Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds))
@@ -283,19 +279,10 @@ public class EpisodeProcessorTransactionService {
     // Single file: return it directly
     if (videoFiles.size() == 1) return videoFiles.get(0);
 
-    if (episode.getTvShow().isAnime()) {
-      List<AnimeMatcherClient.FileCandidate> candidates = videoFiles.stream()
-          .map(f -> new AnimeMatcherClient.FileCandidate(f.index(), f.name(), f.sizeBytes()))
-          .toList();
-      Integer fileIndex = animeMatcherClient.locateEpisodeFile(candidates, showNames,
-          episode.getSeasonNumber(), episode.getEpisodeNumber(), episode.getAbsoluteNumber());
-      return fileIndex == null ? null
-          : videoFiles.stream().filter(f -> f.index() == fileIndex).findFirst().orElse(null);
-    }
-
     Integer epNum = episode.getEpisodeNumber();
     Integer absNum = episode.getAbsoluteNumber();
     Integer seasonNum = episode.getSeasonNumber();
+    boolean isAnime = episode.getTvShow().isAnime();
 
     if (epNum != null || absNum != null) {
       int num = epNum != null ? epNum : absNum;
@@ -333,17 +320,58 @@ public class EpisodeProcessorTransactionService {
       // Fallback: <show title><separator><number>: "Jujutsu Kaisen 05" (spaced) or
       // "Planet.Earth.10" (dotted scene-style naming) - try both forms of each name, and accept
       // either whitespace or a dot as the separator between the matched name and the number.
-      for (String showName : showNames) {
-        String dottedName = showName.replaceAll("\\s+", ".");
-        for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
-          Pattern titlePattern = Pattern.compile(
-              Pattern.quote(nameVariant) + "[\\s.]+0*" + num + "(?!\\d)",
-              Pattern.CASE_INSENSITIVE);
-          List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
-              .filter(f -> titlePattern.matcher(f.name()).find())
-              .toList();
-          if (titleMatched.size() == 1) return titleMatched.get(0);
+      // For anime, unsafe to run when absNum also exists and differs from num: this pattern has
+      // no season qualifier, so in a batch that numbers files absolutely, "<title> 17" means
+      // absolute episode 17 (a different episode entirely), not season-relative episode 17 - skip
+      // it and let the season-qualified patterns above / absolute-number fallback below decide
+      // instead of risking a confident match against the wrong number scheme. Non-anime shows are
+      // untouched - this ambiguity only exists once absNum is populated, which only happens for
+      // isAnime shows.
+      if (!isAnime || absNum == null || absNum == num) {
+        for (String showName : showNames) {
+          String dottedName = showName.replaceAll("\\s+", ".");
+          for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
+            Pattern titlePattern = Pattern.compile(
+                Pattern.quote(nameVariant) + "[\\s.]+0*" + num + "(?!\\d)",
+                Pattern.CASE_INSENSITIVE);
+            List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
+                .filter(f -> titlePattern.matcher(f.name()).find())
+                .toList();
+            if (titleMatched.size() == 1) return titleMatched.get(0);
+          }
         }
+      }
+
+      // Absolute-number fallback, anime shows only, not gated by singleSeason: unlike a bare
+      // season-relative number (ambiguous across seasons without the singleSeason guard), an
+      // absolute episode number is unique across the whole show regardless of season count.
+      // Anime batches/BDRips commonly number files by this absolute count with no season marker
+      // at all, e.g. "[VCB-Studio] Jujutsu Kaisen 41 [BDRip 1080p x265 FLAC].mkv".
+      if (isAnime && absNum != null && absNum != num) {
+        for (String showName : showNames) {
+          String dottedName = showName.replaceAll("\\s+", ".");
+          for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
+            Pattern titleAbsPattern = Pattern.compile(
+                Pattern.quote(nameVariant) + "[\\s.]+0*" + absNum + "(?!\\d)",
+                Pattern.CASE_INSENSITIVE);
+            List<GrabberrClient.TorrentFile> titleAbsMatched = videoFiles.stream()
+                .filter(f -> titleAbsPattern.matcher(f.name()).find())
+                .toList();
+            if (titleAbsMatched.size() == 1) return titleAbsMatched.get(0);
+          }
+        }
+
+        Pattern bareAbsEpPattern = Pattern.compile("(?<![a-zA-Z0-9])ep?0*" + absNum + "(?!\\d)", Pattern.CASE_INSENSITIVE);
+        List<GrabberrClient.TorrentFile> bareAbsMatched = videoFiles.stream()
+            .filter(f -> bareAbsEpPattern.matcher(f.name()).find())
+            .toList();
+        if (bareAbsMatched.size() == 1) return bareAbsMatched.get(0);
+
+        Pattern bareAbsWordPattern = Pattern.compile("(?<![a-zA-Z0-9])episode[\\s.]*0*" + absNum + "(?!\\d)", Pattern.CASE_INSENSITIVE);
+        List<GrabberrClient.TorrentFile> bareAbsWordMatched = videoFiles.stream()
+            .filter(f -> bareAbsWordPattern.matcher(f.name()).find())
+            .toList();
+        if (bareAbsWordMatched.size() == 1) return bareAbsWordMatched.get(0);
       }
 
       // Single-season shows only: bare "EP07"/"E07" with no season marker and no show title in

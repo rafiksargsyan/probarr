@@ -50,6 +50,13 @@ public class EpisodeController {
     return ResponseEntity.ok(episodeService.triggerScan(tvShowId, id));
   }
 
+  @DeleteMapping("/{id}/release/{infoHash}")
+  public ResponseEntity<EpisodeDTO> removeRelease(@PathVariable String tvShowId,
+                                                   @PathVariable String id,
+                                                   @PathVariable String infoHash) {
+    return ResponseEntity.ok(episodeService.removeRelease(tvShowId, id, infoHash));
+  }
+
   @PostMapping("/{id}/blacklist/{infoHash}")
   public ResponseEntity<EpisodeDTO> addToBlackList(@PathVariable String tvShowId,
                                                    @PathVariable String id,

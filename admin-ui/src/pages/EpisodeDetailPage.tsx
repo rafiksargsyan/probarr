@@ -23,6 +23,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -31,6 +32,7 @@ import {
   addToEpisodeBlackList, removeFromEpisodeBlackList,
   addToEpisodeWhiteList, removeFromEpisodeWhiteList,
   addToEpisodeCoolDown, removeFromEpisodeCoolDown,
+  removeEpisodeRelease,
 } from '../api/tvshows';
 import type { Episode } from '../types';
 
@@ -350,6 +352,7 @@ export function EpisodeDetailPage() {
                 <TableCell>Audio</TableCell>
                 <TableCell>Subtitles</TableCell>
                 <TableCell>Added At</TableCell>
+                <TableCell />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -365,6 +368,18 @@ export function EpisodeDetailPage() {
                   <TableCell sx={{ fontSize: 12 }}>{r.audioTracks?.length ?? 0}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{r.subtitleTracks?.length ?? 0}</TableCell>
                   <TableCell sx={{ fontSize: 12 }}>{formatDate(r.createdAt)}</TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!window.confirm(`Delete this release (${r.infoHash.slice(0, 8)}…)? Its infoHash will be blacklisted so it can't be auto-grabbed again.`)) return;
+                        handleListAction(() => removeEpisodeRelease(user!, tvShowId!, episodeId!, r.infoHash));
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

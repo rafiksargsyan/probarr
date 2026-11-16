@@ -53,6 +53,9 @@ export function updateEpisode(
 export function triggerEpisodeScan(user: User, tvShowId: string, episodeId: string): Promise<Episode> {
   return apiRequest(`/tvshow/${tvShowId}/episode/${episodeId}/scan`, user, { method: 'POST' });
 }
+export function removeEpisodeRelease(user: User, tvShowId: string, episodeId: string, infoHash: string): Promise<Episode> {
+  return apiRequest(`/tvshow/${tvShowId}/episode/${episodeId}/release/${infoHash}`, user, { method: 'DELETE' });
+}
 export function addToEpisodeBlackList(user: User, tvShowId: string, episodeId: string, infoHash: string): Promise<Episode> {
   return apiRequest(`/tvshow/${tvShowId}/episode/${episodeId}/blacklist/${infoHash}`, user, { method: 'POST' });
 }

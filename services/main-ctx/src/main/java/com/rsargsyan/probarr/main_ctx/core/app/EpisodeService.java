@@ -116,6 +116,15 @@ public class EpisodeService {
   }
 
   @Transactional
+  public EpisodeDTO removeRelease(String tvShowIdStr, String episodeIdStr, String infoHash) {
+    Long episodeId = Util.validateTSID(episodeIdStr);
+    Episode episode = episodeRepository.findById(episodeId).orElseThrow(ResourceNotFoundException::new);
+    episode.removeRelease(infoHash);
+    episodeRepository.save(episode);
+    return EpisodeDTO.from(episode);
+  }
+
+  @Transactional
   public EpisodeDTO addToBlackList(String tvShowIdStr, String episodeIdStr, String infoHash) {
     Long episodeId = Util.validateTSID(episodeIdStr);
     Episode episode = episodeRepository.findById(episodeId).orElseThrow(ResourceNotFoundException::new);

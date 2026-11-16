@@ -19,6 +19,7 @@ public final class EpisodeNumberResolver {
   private EpisodeNumberResolver() {}
 
   private static final Pattern YEAR = Pattern.compile("(19|20)\\d{2}");
+  private static final Pattern SEASON_WORD_TOKEN = Pattern.compile("^season\\d{0,2}$");
   private static final Pattern LEADING_TOKEN = Pattern.compile("^[\\s.:,']*([a-z0-9]+)");
   private static final Pattern BARE_EPISODE_RANGE = Pattern.compile("\\be?([0-9]+)\\s*-\\s*([0-9]+)\\b");
   private static final Pattern BARE_EPISODE_SINGLE = Pattern.compile("\\be([0-9]+)\\b");
@@ -26,16 +27,18 @@ public final class EpisodeNumberResolver {
   /**
    * A prefix match against a show's name is only trustworthy if what immediately follows the
    * matched name is either nothing (a clean boundary into release metadata like "[", "(", "-")
-   * or the show's own expected metadata (a year). If a roman numeral, a small number, or any
-   * other word immediately follows, the title is very likely for a *different, more specific*
-   * show whose name happens to share this one as a prefix (e.g. "Planet Earth" vs "Planet Earth
-   * III", "Star Trek" vs "Star Trek: Discovery") - reject the match in that case rather than
-   * silently attributing a different show's episodes to this one.
+   * or the show's own expected metadata (a year, or the word "season" - e.g. "Jujutsu Kaisen
+   * Season 3"). If a roman numeral, a small number, or any other word immediately follows, the
+   * title is very likely for a *different, more specific* show whose name happens to share this
+   * one as a prefix (e.g. "Planet Earth" vs "Planet Earth III", "Star Trek" vs "Star Trek:
+   * Discovery") - reject the match in that case rather than silently attributing a different
+   * show's episodes to this one.
    */
   private static boolean hasCleanBoundaryAfterPrefix(String rest) {
     Matcher m = LEADING_TOKEN.matcher(rest);
     if (!m.find()) return true; // next char is a real separator ('[', '(', '-', '/', ...) or end of title
-    return YEAR.matcher(m.group(1)).matches();
+    String token = m.group(1);
+    return YEAR.matcher(token).matches() || SEASON_WORD_TOKEN.matcher(token).matches();
   }
 
   /**
@@ -74,12 +77,18 @@ public final class EpisodeNumberResolver {
     }
 
     // Check season is present in title
-    Pattern seasonRange = Pattern.compile(String.format("s([0-9]+)[-\\s]+([0-9]+)", ""));
+    // Tight (no whitespace) on purpose: a genuine season range is written "S01-02" or "S01-S03".
+    // Once whitespace is allowed around the dash it also matches "S3 - 12" and "S3 01-12", which
+    // in practice mean "season 3, episode 12" / "season 3, episodes 1-12" - not a season range -
+    // see the dash-episode tier below, which handles exactly that shape.
+    Pattern seasonRange = Pattern.compile("s([0-9]+)-s?([0-9]+)");
     Pattern multiSeason = Pattern.compile("s([0-9]+).*s([0-9]+).*s([0-9]+)");
     Pattern seasonDirect = Pattern.compile(String.format("s0*%d[^\\d]", seasonNumber));
+    Pattern seasonWord = Pattern.compile(String.format("season\\s*0*%d[^\\d]", seasonNumber));
     Pattern seasonTemporada = Pattern.compile(String.format("temporada\\s*0*%d[^\\d]", seasonNumber));
     Pattern seasonSaison = Pattern.compile(String.format("saison\\s*0*%d[^\\d]", seasonNumber));
 
+    boolean viaRange = false;
     Matcher rangeM = seasonRange.matcher(titleLC);
     if (rangeM.find() && !multiSeason.matcher(titleLC).find()) {
       int start = Integer.parseInt(rangeM.group(1));
@@ -87,8 +96,10 @@ public final class EpisodeNumberResolver {
       if (seasonNumber < start || seasonNumber > end) {
         return List.of();
       }
+      viaRange = true;
       // Season is in range — treat as season pack for this season
     } else if (!seasonDirect.matcher(titleLC).find()
+        && !seasonWord.matcher(titleLC).find()
         && !seasonTemporada.matcher(titleLC).find()
         && !seasonSaison.matcher(titleLC).find()
         && !singleSeason) {
@@ -113,6 +124,18 @@ public final class EpisodeNumberResolver {
     Matcher singleM = singleEp.matcher(titleLC);
     if (singleM.find()) {
       return List.of(Integer.parseInt(singleM.group(1)));
+    }
+
+    // Season + bare dash + number, no "E" marker at all: "S3 - 12" meaning "season 3, episode
+    // 12". Only tried when the season wasn't already explained by a genuine tight season-range
+    // match above (viaRange) - "S01-02" stays a season-pack match for both seasons instead of
+    // getting reinterpreted as "season 1, episode 2".
+    if (!viaRange) {
+      Pattern seasonDashEp = Pattern.compile(String.format("s0*%d\\s*-\\s*([0-9]+)(?!\\d)", seasonNumber));
+      Matcher dashM = seasonDashEp.matcher(titleLC);
+      if (dashM.find()) {
+        return List.of(Integer.parseInt(dashM.group(1)));
+      }
     }
 
     if (singleSeason) {
