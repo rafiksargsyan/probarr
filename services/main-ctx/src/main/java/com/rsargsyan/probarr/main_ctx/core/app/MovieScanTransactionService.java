@@ -81,6 +81,10 @@ public class MovieScanTransactionService {
           log.info("Skipping '{}': already whitelisted", r.title());
           continue;
         }
+        if (TorrentTracker.fromJackettName(r.tracker()).orElse(null) == TorrentTracker.NYAA) {
+          log.info("Skipping '{}': Nyaa releases are anime-only, not used for movies", r.title());
+          continue;
+        }
         RipType ripType = RipType.fromTitle(r.title());
         if (ripType == null) {
           log.info("Skipping '{}': unrecognized rip type", r.title());

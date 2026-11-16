@@ -44,6 +44,9 @@ public class TVShow extends AggregateRoot {
   private boolean useTvdb = false;
 
   @Getter
+  private boolean isAnime = false;
+
+  @Getter
   private Instant lastEnrichedAt;
 
   /** Deduplicated list of all known names across languages, used for title-prefix matching. */
@@ -56,7 +59,7 @@ public class TVShow extends AggregateRoot {
   TVShow() {}
 
   public TVShow(String originalTitle, Locale originalLocale, Long tmdbId, String imdbId,
-                Long tvdbId, LocalDate releaseDate, boolean useTvdb) {
+                Long tvdbId, LocalDate releaseDate, boolean useTvdb, boolean isAnime) {
     if (originalTitle == null || originalTitle.isBlank()) {
       throw new InvalidTitleException();
     }
@@ -67,6 +70,7 @@ public class TVShow extends AggregateRoot {
     this.tvdbId = tvdbId;
     this.releaseDate = releaseDate;
     this.useTvdb = useTvdb;
+    this.isAnime = isAnime;
   }
 
   public void update(String originalTitle, Locale originalLocale, Long tmdbId, String imdbId,

@@ -51,6 +51,7 @@ export function TVShowsPage() {
     tvdbId: '',
     releaseDate: '',
     useTvdb: false,
+    isAnime: false,
   });
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export function TVShowsPage() {
       tvdbId: '',
       releaseDate: '',
       useTvdb: false,
+      isAnime: false,
     });
     setFormError(null);
   }
@@ -91,6 +93,7 @@ export function TVShowsPage() {
         tvdbId: form.tvdbId ? parseInt(form.tvdbId) : null,
         releaseDate: form.releaseDate || null,
         useTvdb: form.useTvdb,
+        isAnime: form.isAnime,
       });
       setDialogOpen(false);
       resetForm();
@@ -134,6 +137,7 @@ export function TVShowsPage() {
                   <TableCell>TMDB ID</TableCell>
                   <TableCell>TVDB ID</TableCell>
                   <TableCell>Use TVDB</TableCell>
+                  <TableCell>Anime</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -150,11 +154,12 @@ export function TVShowsPage() {
                     <TableCell>{s.tmdbId ?? '—'}</TableCell>
                     <TableCell>{s.tvdbId ?? '—'}</TableCell>
                     <TableCell>{s.useTvdb ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>{s.isAnime ? 'Yes' : 'No'}</TableCell>
                   </TableRow>
                 ))}
                 {tvShows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary' }}>
+                    <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary' }}>
                       No TV shows yet
                     </TableCell>
                   </TableRow>
@@ -226,7 +231,16 @@ export function TVShowsPage() {
                 onChange={(e) => setForm({ ...form, useTvdb: e.target.checked })}
               />
             }
-            label="Use TVDB for season/episode data (anime)"
+            label="Use TVDB for season/episode data"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={form.isAnime}
+                onChange={(e) => setForm({ ...form, isAnime: e.target.checked })}
+              />
+            }
+            label="Anime (use LLM-based release/episode matching)"
           />
         </DialogContent>
         <DialogActions>

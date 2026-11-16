@@ -11,5 +11,6 @@ public record TVShowCreationDTO(
     String imdbId,
     Long tvdbId,
     LocalDate releaseDate,
-    boolean useTvdb
+    boolean useTvdb,
+    boolean isAnime
 ) {}

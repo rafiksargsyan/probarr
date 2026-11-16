@@ -15,7 +15,8 @@ public enum TorrentTracker {
   CINECALIDAD,
   RARBG,
   KINOZAL,
-  TORRENT_GALAXY;
+  TORRENT_GALAXY,
+  NYAA;
 
   public boolean isLanguageSpecific() {
     return this == RUTRACKER_ORG || this == RUTRACKER_RU || this == RUTOR
@@ -39,6 +40,7 @@ public enum TorrentTracker {
     if (n.contains("cinecalidad")) return Optional.of(CINECALIDAD);
     if (n.contains("kinozal")) return Optional.of(KINOZAL);
     if (n.contains("torrentgalaxy") || n.contains("torrent galaxy") || n.contains("tgx")) return Optional.of(TORRENT_GALAXY);
+    if (n.contains("nyaa")) return Optional.of(NYAA);
     return Optional.empty();
   }
 }

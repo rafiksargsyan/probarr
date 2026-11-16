@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/004-tvshow-original-title-release-date-unique.yaml
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/005-tvshow-is-anime.yaml
+      relativeToChangelogFile: false

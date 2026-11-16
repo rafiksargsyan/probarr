@@ -98,8 +98,38 @@ public class TVShowEnrichmentTransactionService {
       syncSeasonsAndEpisodesFromTvdb(tvShow, effectiveTvdbId);
     }
 
+    if (tvShow.isAnime()) {
+      recomputeAbsoluteNumbers(tvShow);
+    }
+
     tvShowRepository.save(tvShow);
     log.info("Enrichment done for '{}'", tvShow.getOriginalTitle());
+  }
+
+  /**
+   * Anime release titles/batches commonly reference episodes by an absolute count across the
+   * whole series rather than per-season (e.g. "Jujutsu Kaisen - 25" means season 2 episode 1).
+   * Recomputes from scratch every time (not just stamping newly-created episodes) so a season's
+   * episode count settling late — or a correction from the metadata provider — self-corrects on
+   * the next enrichment run instead of leaving later seasons permanently off by however many
+   * episodes were missing when they were first numbered.
+   */
+  private void recomputeAbsoluteNumbers(TVShow tvShow) {
+    List<Episode> episodes = episodeRepository.findByTvShowId(tvShow.getId()).stream()
+        .filter(e -> e.getSeasonNumber() != null && e.getEpisodeNumber() != null)
+        .sorted(java.util.Comparator.comparing(Episode::getSeasonNumber)
+            .thenComparing(Episode::getEpisodeNumber))
+        .toList();
+
+    int absoluteNumber = 1;
+    for (Episode ep : episodes) {
+      if (!java.util.Objects.equals(ep.getAbsoluteNumber(), absoluteNumber)) {
+        ep.update(ep.getSeasonNumber(), ep.getEpisodeNumber(), absoluteNumber,
+            ep.getAirDate(), ep.getRuntimeSeconds());
+        episodeRepository.save(ep);
+      }
+      absoluteNumber++;
+    }
   }
 
   private void addNamesFromTvdb(TVShow tvShow, Long tvdbId) {

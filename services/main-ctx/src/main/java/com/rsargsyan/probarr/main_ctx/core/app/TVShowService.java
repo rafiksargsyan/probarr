@@ -34,7 +34,7 @@ public class TVShowService {
   @Transactional
   public TVShowDTO createTVShow(TVShowCreationDTO dto) {
     TVShow tvShow = new TVShow(dto.originalTitle(), dto.originalLocale(), dto.tmdbId(),
-        dto.imdbId(), dto.tvdbId(), dto.releaseDate(), dto.useTvdb());
+        dto.imdbId(), dto.tvdbId(), dto.releaseDate(), dto.useTvdb(), dto.isAnime());
     tvShowRepository.save(tvShow);
     return TVShowDTO.from(tvShow);
   }

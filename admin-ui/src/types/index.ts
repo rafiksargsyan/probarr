@@ -150,6 +150,7 @@ export interface TVShow {
   tvdbId: number | null;
   releaseDate: string | null;
   useTvdb: boolean;
+  isAnime: boolean;
   lastEnrichedAt: string | null;
   createdAt: string;
   names: string[];

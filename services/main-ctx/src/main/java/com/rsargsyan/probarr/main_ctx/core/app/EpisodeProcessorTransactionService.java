@@ -19,6 +19,7 @@ import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.Release;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.ReleaseCandidate;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsAuthor;
 import com.rsargsyan.probarr.main_ctx.core.domain.valueobject.SubsType;
+import com.rsargsyan.probarr.main_ctx.core.ports.client.AnimeMatcherClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.GrabberrClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.client.ObjectStorageClient;
 import com.rsargsyan.probarr.main_ctx.core.ports.repository.EpisodeRepository;
@@ -56,6 +57,7 @@ public class EpisodeProcessorTransactionService {
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final Config config;
+  private final AnimeMatcherClient animeMatcherClient;
 
   @Autowired
   public EpisodeProcessorTransactionService(EpisodeRepository episodeRepository,
@@ -63,13 +65,15 @@ public class EpisodeProcessorTransactionService {
                                              GrabberrClient grabberrClient,
                                              ObjectStorageClient objectStorageClient,
                                              ObjectMapper objectMapper,
-                                             Config config) {
+                                             Config config,
+                                             AnimeMatcherClient animeMatcherClient) {
     this.episodeRepository = episodeRepository;
     this.seasonRepository = seasonRepository;
     this.grabberrClient = grabberrClient;
     this.objectStorageClient = objectStorageClient;
     this.objectMapper = objectMapper;
     this.config = config;
+    this.animeMatcherClient = animeMatcherClient;
     this.httpClient = HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NEVER)
         .connectTimeout(Duration.ofSeconds(config.jackettTorrentDownloadTimeoutSeconds))
@@ -278,6 +282,16 @@ public class EpisodeProcessorTransactionService {
 
     // Single file: return it directly
     if (videoFiles.size() == 1) return videoFiles.get(0);
+
+    if (episode.getTvShow().isAnime()) {
+      List<AnimeMatcherClient.FileCandidate> candidates = videoFiles.stream()
+          .map(f -> new AnimeMatcherClient.FileCandidate(f.index(), f.name(), f.sizeBytes()))
+          .toList();
+      Integer fileIndex = animeMatcherClient.locateEpisodeFile(candidates, showNames,
+          episode.getSeasonNumber(), episode.getEpisodeNumber(), episode.getAbsoluteNumber());
+      return fileIndex == null ? null
+          : videoFiles.stream().filter(f -> f.index() == fileIndex).findFirst().orElse(null);
+    }
 
     Integer epNum = episode.getEpisodeNumber();
     Integer absNum = episode.getAbsoluteNumber();
@@ -577,6 +591,7 @@ public class EpisodeProcessorTransactionService {
         if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
       }
       if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
+      if (language == null) continue;
       SubsAuthor author = SubsAuthorParser.parse(streamTitle);
       SubsType subsType = SubsType.fromTitle(streamTitle);
       addSubtitleTrack(result, new SubtitleTrack(s.path("index").asInt(), language, subsType, author));

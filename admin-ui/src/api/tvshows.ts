@@ -18,6 +18,7 @@ export function createTVShow(
     tvdbId?: number | null;
     releaseDate?: string | null;
     useTvdb?: boolean;
+    isAnime?: boolean;
   },
 ): Promise<TVShow> {
   return apiRequest('/tvshow', user, { method: 'POST', body: JSON.stringify(body) });

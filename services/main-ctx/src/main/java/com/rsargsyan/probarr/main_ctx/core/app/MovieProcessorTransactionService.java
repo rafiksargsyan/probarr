@@ -525,6 +525,7 @@ public class MovieProcessorTransactionService {
         if (originalTag.startsWith(detectedTag + "-")) language = originalLocale;
       }
       if (language != null && streamTitle != null) language = refineLocaleFromTitle(language, streamTitle);
+      if (language == null) continue;
       SubsAuthor author = SubsAuthorParser.parse(streamTitle);
       SubsType subsType = SubsType.fromTitle(streamTitle);
       addSubtitleTrack(result, new SubtitleTrack(s.path("index").asInt(), language, subsType, author));

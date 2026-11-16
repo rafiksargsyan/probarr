@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-tvshow-is-anime
+      author: rsargsyan
+      changes:
+        - sql:
+            sql: ALTER TABLE tvshow ADD COLUMN is_anime BOOLEAN NOT NULL DEFAULT FALSE;

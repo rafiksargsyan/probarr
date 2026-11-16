@@ -143,6 +143,16 @@ export function TVShowDetailPage() {
               />
             }
           />
+          <DetailRow
+            label="Anime"
+            value={
+              <Chip
+                label={tvShow.isAnime ? 'Yes' : 'No'}
+                size="small"
+                color={tvShow.isAnime ? 'primary' : 'default'}
+              />
+            }
+          />
           <DetailRow label="Last Enriched" value={formatDate(tvShow.lastEnrichedAt)} />
           <DetailRow label="Created At" value={formatDate(tvShow.createdAt)} />
           <DetailRow

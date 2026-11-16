@@ -16,6 +16,7 @@ public record TVShowDTO(
     Long tvdbId,
     LocalDate releaseDate,
     boolean useTvdb,
+    boolean isAnime,
     Instant lastEnrichedAt,
     Instant createdAt,
     List<String> names
@@ -30,6 +31,7 @@ public record TVShowDTO(
         tvShow.getTvdbId(),
         tvShow.getReleaseDate(),
         tvShow.isUseTvdb(),
+        tvShow.isAnime(),
         tvShow.getLastEnrichedAt(),
         tvShow.getCreatedAt(),
         tvShow.getNames()
