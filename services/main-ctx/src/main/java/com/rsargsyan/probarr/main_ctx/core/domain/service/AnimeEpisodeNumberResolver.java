@@ -37,6 +37,7 @@ public final class AnimeEpisodeNumberResolver {
   private static final Pattern LEADING_GROUP_TAGS = Pattern.compile("^(?:\\s*[\\[(][^\\])]*[\\])])+\\s*");
   private static final Pattern BARE_EPISODE_RANGE = Pattern.compile("\\be?([0-9]+)\\s*-\\s*e?([0-9]+)\\b");
   private static final Pattern BARE_EPISODE_SINGLE = Pattern.compile("\\be([0-9]+)\\b");
+  private static final Pattern COMPLETE_SERIES = Pattern.compile("complete\\s*series");
 
   /**
    * A prefix match against a show's name is only trustworthy if what immediately follows the
@@ -82,17 +83,27 @@ public final class AnimeEpisodeNumberResolver {
 
     // Title must start with a known show name (dotted or spaced form), and whatever immediately
     // follows the matched name must not look like a different, more specific show's title
-    // (e.g. a sequel numeral) - see hasCleanBoundaryAfterPrefix.
+    // (e.g. a sequel numeral) - see hasCleanBoundaryAfterPrefix. Fansub/BDRip groups commonly
+    // lead with a "/"-separated run of alternate titles instead of just one - native, romanized,
+    // English, kanji, in any order, e.g. "Shingeki no Kyojin / 進撃の巨人 / Attack on Titan /
+    // Complete Series - 1080P". A plain startsWith against the whole string only ever reaches the
+    // first such title, so split on "/" and try each trimmed segment as its own prefix candidate
+    // - the boundary check runs against that segment's own remainder, not the rest of the title.
     boolean prefixMatched = false;
-    for (String name : showNames) {
-      String dotted = name.replaceAll("\\s+", ".");
-      if (prefixCandidate.startsWith(name) && hasCleanBoundaryAfterPrefix(prefixCandidate.substring(name.length()))) {
-        prefixMatched = true;
-        break;
-      }
-      if (prefixCandidate.startsWith(dotted) && hasCleanBoundaryAfterPrefix(prefixCandidate.substring(dotted.length()))) {
-        prefixMatched = true;
-        break;
+    outer:
+    for (String segment : prefixCandidate.split("/")) {
+      segment = segment.trim();
+      if (segment.isEmpty()) continue;
+      for (String name : showNames) {
+        String dotted = name.replaceAll("\\s+", ".");
+        if (segment.startsWith(name) && hasCleanBoundaryAfterPrefix(segment.substring(name.length()))) {
+          prefixMatched = true;
+          break outer;
+        }
+        if (segment.startsWith(dotted) && hasCleanBoundaryAfterPrefix(segment.substring(dotted.length()))) {
+          prefixMatched = true;
+          break outer;
+        }
       }
     }
     if (!prefixMatched) {
@@ -159,6 +170,19 @@ public final class AnimeEpisodeNumberResolver {
           }
         }
       }
+
+      // Whole-series batch, no season marker anywhere ("Complete Series", "... / Complete
+      // Series - 1080P + 4K"): fansub/BDRip groups releasing the entire show as one torrent
+      // commonly carry no per-season info at all. Treat it as a season pack for whichever
+      // season is currently being scanned - repeated scan calls (one per season) then add it to
+      // every season's episodes. Guarded the same way as the absolute-range case above: only
+      // when the title doesn't commit to any specific season.
+      if (COMPLETE_SERIES.matcher(titleLC).find()
+          && !anySeasonDirect.matcher(titleLC).find()
+          && !anySeasonWord.matcher(titleLC).find()) {
+        return null;
+      }
+
       return List.of();
     }
 

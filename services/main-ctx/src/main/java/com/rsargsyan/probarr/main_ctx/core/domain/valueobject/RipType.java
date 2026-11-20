@@ -12,7 +12,8 @@ public enum RipType {
 
   // Mirrors Radarr's SourceRegex groups, ordered most-specific first
   private static final Pattern BR_REGEX = Pattern.compile(
-      "\\b(M?Blu[-_. ]?Ray|HD[-_. ]?DVD|UHD2?BD|BDISO|BDMux|BD25|BD50|BDRip|BDLight|UHDBDRip|BRRip|(BD)?REMUX)\\b",
+      "\\b(M?Blu[-_. ]?Ray|HD[-_. ]?DVD|UHD2?BD|BDISO|BDMux|BD25|BD50|BDRip|BDLight|UHDBDRip|BRRip|(BD)?REMUX" +
+      "|BD[-_. ]?(?:480|720|1080|2160)p)\\b",
       Pattern.CASE_INSENSITIVE);
 
   private static final Pattern WEBDL_REGEX = Pattern.compile(

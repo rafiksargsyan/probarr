@@ -320,47 +320,33 @@ public class EpisodeProcessorTransactionService {
       // Fallback: <show title><separator><number>: "Jujutsu Kaisen 05" (spaced) or
       // "Planet.Earth.10" (dotted scene-style naming) - try both forms of each name, and accept
       // either whitespace or a dot as the separator between the matched name and the number.
-      // For anime, unsafe to run when absNum also exists and differs from num: this pattern has
-      // no season qualifier, so in a batch that numbers files absolutely, "<title> 17" means
-      // absolute episode 17 (a different episode entirely), not season-relative episode 17 - skip
-      // it and let the season-qualified patterns above / absolute-number fallback below decide
-      // instead of risking a confident match against the wrong number scheme. Non-anime shows are
-      // untouched - this ambiguity only exists once absNum is populated, which only happens for
-      // isAnime shows.
-      if (!isAnime || absNum == null || absNum == num) {
-        for (String showName : showNames) {
-          String dottedName = showName.replaceAll("\\s+", ".");
-          for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
-            Pattern titlePattern = Pattern.compile(
-                Pattern.quote(nameVariant) + "[\\s.]+0*" + num + "(?!\\d)",
-                Pattern.CASE_INSENSITIVE);
-            List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
-                .filter(f -> titlePattern.matcher(f.name()).find())
-                .toList();
-            if (titleMatched.size() == 1) return titleMatched.get(0);
-          }
+      // This pattern has no season qualifier, so for anime shows it must key on the absolute
+      // number (unique across the whole show) rather than the season-relative one: in a batch
+      // that numbers files absolutely, "<title> 17" means absolute episode 17, not season-
+      // relative episode 17, and trying the relative number here would risk a confident match
+      // against a different, real episode. When absNum == num (season 1) this is still just one
+      // number either way, so no case is lost by preferring absNum.
+      int titleNum = (isAnime && absNum != null) ? absNum : num;
+      for (String showName : showNames) {
+        String dottedName = showName.replaceAll("\\s+", ".");
+        for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
+          Pattern titlePattern = Pattern.compile(
+              Pattern.quote(nameVariant) + "[\\s.]+0*" + titleNum + "(?!\\d)",
+              Pattern.CASE_INSENSITIVE);
+          List<GrabberrClient.TorrentFile> titleMatched = videoFiles.stream()
+              .filter(f -> titlePattern.matcher(f.name()).find())
+              .toList();
+          if (titleMatched.size() == 1) return titleMatched.get(0);
         }
       }
 
-      // Absolute-number fallback, anime shows only, not gated by singleSeason: unlike a bare
-      // season-relative number (ambiguous across seasons without the singleSeason guard), an
-      // absolute episode number is unique across the whole show regardless of season count.
+      // Bare "E41"/"EP41" or "Episode 41" with no show title in the filename at all - anime
+      // shows only, keyed on the absolute number and not gated by singleSeason: unlike a bare
+      // season-relative number (ambiguous across seasons without the singleSeason guard below),
+      // an absolute episode number is unique across the whole show regardless of season count.
       // Anime batches/BDRips commonly number files by this absolute count with no season marker
       // at all, e.g. "[VCB-Studio] Jujutsu Kaisen 41 [BDRip 1080p x265 FLAC].mkv".
-      if (isAnime && absNum != null && absNum != num) {
-        for (String showName : showNames) {
-          String dottedName = showName.replaceAll("\\s+", ".");
-          for (String nameVariant : new java.util.LinkedHashSet<>(List.of(showName, dottedName))) {
-            Pattern titleAbsPattern = Pattern.compile(
-                Pattern.quote(nameVariant) + "[\\s.]+0*" + absNum + "(?!\\d)",
-                Pattern.CASE_INSENSITIVE);
-            List<GrabberrClient.TorrentFile> titleAbsMatched = videoFiles.stream()
-                .filter(f -> titleAbsPattern.matcher(f.name()).find())
-                .toList();
-            if (titleAbsMatched.size() == 1) return titleAbsMatched.get(0);
-          }
-        }
-
+      if (isAnime && absNum != null) {
         Pattern bareAbsEpPattern = Pattern.compile("(?<![a-zA-Z0-9])ep?0*" + absNum + "(?!\\d)", Pattern.CASE_INSENSITIVE);
         List<GrabberrClient.TorrentFile> bareAbsMatched = videoFiles.stream()
             .filter(f -> bareAbsEpPattern.matcher(f.name()).find())
