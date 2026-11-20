@@ -294,12 +294,19 @@ public class EpisodeProcessorTransactionService {
       // Pattern 2: 1x05 format
       Pattern nxnPattern = Pattern.compile(
           String.format("0*%dx0*%d[^\\d]", season, num), Pattern.CASE_INSENSITIVE);
+      // Pattern 3: season + bare dash + number, no "E" marker at all - "S2 - 12" meaning
+      // "season 2, episode 12" (BD-batch groups like Moozzi2 commonly name files this way). The
+      // season marker is what signals relative numbering here - it's the same reasoning the
+      // release-title resolver's seasonDashEp tier already relies on for the identical shape.
+      Pattern seasonDashPattern = Pattern.compile(
+          String.format("s0*%d\\s*-\\s*0*%d(?!\\d)", season, num), Pattern.CASE_INSENSITIVE);
 
       // First pass: match against full path
       List<GrabberrClient.TorrentFile> candidates = videoFiles.stream()
           .filter(f -> {
             String name = f.name().toLowerCase();
-            return sxePattern.matcher(name).find() || nxnPattern.matcher(name).find();
+            return sxePattern.matcher(name).find() || nxnPattern.matcher(name).find()
+                || seasonDashPattern.matcher(name).find();
           })
           .collect(java.util.stream.Collectors.toList());
 
@@ -310,7 +317,8 @@ public class EpisodeProcessorTransactionService {
               String name = f.name().toLowerCase();
               int slash = name.lastIndexOf('/');
               String baseName = slash >= 0 ? name.substring(slash + 1) : name;
-              return sxePattern.matcher(baseName).find() || nxnPattern.matcher(baseName).find();
+              return sxePattern.matcher(baseName).find() || nxnPattern.matcher(baseName).find()
+                  || seasonDashPattern.matcher(baseName).find();
             })
             .collect(java.util.stream.Collectors.toList());
       }
