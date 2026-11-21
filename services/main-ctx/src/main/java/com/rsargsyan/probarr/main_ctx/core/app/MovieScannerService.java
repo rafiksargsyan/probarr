@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -32,7 +35,10 @@ public class MovieScannerService {
 
   public void scanDueMovies() {
     Instant threshold = Instant.now().minus(config.movieScanIntervalSeconds, ChronoUnit.SECONDS);
-    List<Long> ids = movieRepository.findIdsDueForScan(threshold);
+    LocalDate releaseDateCutoff = LocalDate.now().minusMonths(config.movieScanSkipAfterReleaseMonths);
+    Instant createdAtCutoff = ZonedDateTime.now(ZoneOffset.UTC)
+        .minusMonths(config.movieScanSkipAfterCreationMonths).toInstant();
+    List<Long> ids = movieRepository.findIdsDueForScan(threshold, releaseDateCutoff, createdAtCutoff);
     log.info("Found {} movie(s) due for scan", ids.size());
     for (Long id : ids) {
       Movie movie = movieRepository.findById(id).orElse(null);

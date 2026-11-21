@@ -35,6 +35,17 @@ public class Config {
   @Value("${movie.scan-stale-timeout-seconds:3600}")
   public int movieScanStaleTimeoutSeconds;
 
+  // Stop auto-scanning old movies that have had plenty of time to show up on indexers: once a
+  // movie is both this old (by release date) and has sat in probarr this long (by creation date)
+  // with nothing found, further scheduled scans are a near-certain waste. forceScan still
+  // bypasses this, and a manually-triggered scan from the UI (MovieService.triggerScan) never
+  // goes through this check at all - it calls scanMovie directly.
+  @Value("${movie.scan-skip-after-release-months:6}")
+  public int movieScanSkipAfterReleaseMonths;
+
+  @Value("${movie.scan-skip-after-creation-months:1}")
+  public int movieScanSkipAfterCreationMonths;
+
   @Value("${movie.scan-delay-seconds}")
   public int movieScanDelaySeconds;
 
