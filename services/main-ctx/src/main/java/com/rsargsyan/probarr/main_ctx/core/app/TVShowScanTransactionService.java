@@ -1,5 +1,6 @@
 package com.rsargsyan.probarr.main_ctx.core.app;
 
+import com.rsargsyan.probarr.main_ctx.Config;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Episode;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.Season;
 import com.rsargsyan.probarr.main_ctx.core.domain.aggregate.TVShow;
@@ -21,6 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -34,16 +39,19 @@ public class TVShowScanTransactionService {
   private final SeasonRepository seasonRepository;
   private final EpisodeRepository episodeRepository;
   private final IndexerClient indexerClient;
+  private final Config config;
 
   @Autowired
   public TVShowScanTransactionService(TVShowRepository tvShowRepository,
                                       SeasonRepository seasonRepository,
                                       EpisodeRepository episodeRepository,
-                                      IndexerClient indexerClient) {
+                                      IndexerClient indexerClient,
+                                      Config config) {
     this.tvShowRepository = tvShowRepository;
     this.seasonRepository = seasonRepository;
     this.episodeRepository = episodeRepository;
     this.indexerClient = indexerClient;
+    this.config = config;
   }
 
   @Transactional
@@ -63,18 +71,29 @@ public class TVShowScanTransactionService {
       return;
     }
 
-    // Group episodes by season number for fast lookup, skipping those already in progress or done
+    LocalDate airDateCutoff = LocalDate.now().minusMonths(config.tvShowScanSkipAfterAirMonths);
+    Instant createdAtCutoff = ZonedDateTime.now(ZoneOffset.UTC)
+        .minusMonths(config.tvShowScanSkipAfterCreationMonths).toInstant();
+
+    // Group episodes by season number for fast lookup, skipping those already in progress, done,
+    // or old-and-stale (aired and created long enough ago that further scheduled scans are a
+    // near-certain waste - a manual scan from the UI goes through scanEpisode directly and never
+    // hits this check).
     for (Episode e : allEpisodes) {
       if (e.getSeasonNumber() == null) {
         log.info("Excluding episode id={} from this scan: no season number", e.getId());
       } else if (!e.getReleaseCandidates().isEmpty()) {
         log.info("Excluding episode S{}E{} from this scan: already has {} pending candidate(s)",
             e.getSeasonNumber(), e.getEpisodeNumber(), e.getReleaseCandidates().size());
+      } else if (isOldAndStale(e, airDateCutoff, createdAtCutoff)) {
+        log.info("Excluding episode S{}E{} from this scan: aired {} and created {}, nothing found yet",
+            e.getSeasonNumber(), e.getEpisodeNumber(), e.getAirDate(), e.getCreatedAt());
       }
     }
     Map<Integer, List<Episode>> episodesBySeason = allEpisodes.stream()
         .filter(e -> e.getSeasonNumber() != null)
         .filter(e -> e.getReleaseCandidates().isEmpty())
+        .filter(e -> !isOldAndStale(e, airDateCutoff, createdAtCutoff))
         .collect(Collectors.groupingBy(Episode::getSeasonNumber));
 
     // Max episode number per season for EpisodeNumberResolver (use all episodes, not just eligible)
@@ -348,6 +367,12 @@ public class TVShowScanTransactionService {
     log.info("Scan done for episode [{}]: added {} candidate(s)", episodeId, added);
   }
 
+
+  // airDate == null means we don't know the episode's age, so never treat it as stale.
+  private static boolean isOldAndStale(Episode e, LocalDate airDateCutoff, Instant createdAtCutoff) {
+    return e.getAirDate() != null && !e.getAirDate().isAfter(airDateCutoff)
+        && !e.getCreatedAt().isAfter(createdAtCutoff);
+  }
 
   private static String pickMostEnglishTitle(String original, List<String> alternatives, Locale locale) {
     if (locale != null && locale.isEnglish()) return original;

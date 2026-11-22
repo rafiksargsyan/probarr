@@ -58,6 +58,17 @@ public class Config {
   @Value("${tvshow.episode-scan-stale-timeout-seconds:3600}")
   public int episodeScanStaleTimeoutSeconds;
 
+  // Same idea as the movie scan-skip rule above, applied per-episode instead of per-show since a
+  // show keeps airing new episodes indefinitely: once an episode is both this old (by air date)
+  // and has sat in probarr this long (by creation date) with nothing found, further scheduled
+  // scans of it are a near-certain waste. Manually triggering a scan from the UI
+  // (EpisodeService.triggerScan -> scanEpisode) never goes through this check at all.
+  @Value("${tvshow.scan-skip-after-air-months:1}")
+  public int tvShowScanSkipAfterAirMonths;
+
+  @Value("${tvshow.scan-skip-after-creation-months:1}")
+  public int tvShowScanSkipAfterCreationMonths;
+
   @Value("${tvshow.enrichment-interval-seconds:604800}")
   public int tvShowEnrichmentIntervalSeconds;
 
