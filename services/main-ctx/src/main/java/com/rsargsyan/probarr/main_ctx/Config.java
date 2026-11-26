@@ -26,6 +26,12 @@ public class Config {
   @Value("${jackett.torrent-download-timeout-seconds:10}")
   public int jackettTorrentDownloadTimeoutSeconds;
 
+  // Shared between movies and episodes - periodically clears FILE_DOWNLOAD_FAILED blacklist
+  // entries so a release that failed to download once (transient - dead seeders, a network
+  // blip) gets a chance to be retried later, instead of being blacklisted forever.
+  @Value("${blacklist.clear-interval-seconds:21600}")
+  public int blacklistClearIntervalSeconds;
+
   @Value("${movie.min-bitrate-kbps}")
   public int minBitrateKbps;
 

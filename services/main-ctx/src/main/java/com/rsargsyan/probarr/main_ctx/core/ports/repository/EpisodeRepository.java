@@ -17,5 +17,8 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
   @Query(value = "SELECT id FROM episode WHERE jsonb_array_length(release_candidates) > 0", nativeQuery = true)
   List<Long> findIdsWithPendingCandidates();
 
+  @Query(value = "SELECT id FROM episode WHERE black_list @> '[{\"reason\":\"FILE_DOWNLOAD_FAILED\"}]'::jsonb", nativeQuery = true)
+  List<Long> findIdsWithFileDownloadFailedBlacklist();
+
   List<Episode> findByScanningTrue();
 }

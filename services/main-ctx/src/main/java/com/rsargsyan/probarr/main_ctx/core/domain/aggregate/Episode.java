@@ -217,6 +217,12 @@ public class Episode extends AggregateRoot {
     }
   }
 
+  public void clearBlackListByReason(BlacklistReason reason) {
+    if (blackList.removeIf(e -> e.reason() == reason)) {
+      touch();
+    }
+  }
+
   public boolean isBlacklisted(String infoHash) {
     return blackList.stream().anyMatch(e -> e.infoHash().equals(infoHash.toLowerCase()));
   }

@@ -26,6 +26,9 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
   @Query(value = "SELECT id FROM movie WHERE jsonb_array_length(release_candidates) > 0", nativeQuery = true)
   List<Long> findIdsWithPendingCandidates();
 
+  @Query(value = "SELECT id FROM movie WHERE black_list @> '[{\"reason\":\"FILE_DOWNLOAD_FAILED\"}]'::jsonb", nativeQuery = true)
+  List<Long> findIdsWithFileDownloadFailedBlacklist();
+
   @Query("SELECT m.id FROM Movie m WHERE m.tmdbId IS NOT NULL AND (m.lastEnrichedAt IS NULL OR m.lastEnrichedAt < :threshold)")
   List<Long> findIdsDueForEnrichment(@Param("threshold") Instant threshold);
 }
